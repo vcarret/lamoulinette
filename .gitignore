@@ -1,0 +1,6 @@
+*.json
+*.pickle
+*.pdf
+*.txt
+orig_images/
+zotPdfLoader.py
