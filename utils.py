@@ -21,7 +21,6 @@ else:
     PATH_SEP = "/"
 
 ROOT = '/home/carter/Documents/Moulinette/'
-PROJECT = ''
 
 lang_map = {
 	'': '',
@@ -35,8 +34,8 @@ def extractOCR(file, root, project, doOCR):
 	pdf = pdfplumber.open(file)# Returns a PDF object
 
 	if project == "":
-		project = file.split(".")[0]
-		
+		project = file.split(".")[0].split(PATH_SEP)[-1]
+
 	proj_path = root + project
 	if not path.exists(proj_path):
 		mkdir(proj_path)
@@ -56,6 +55,7 @@ def extractOCR(file, root, project, doOCR):
 			txt_file.write(text)
 		txt_file.close()
 
+	return project
 
 # If modifying these scopes, delete the file token.pickle.
 SCOPES = ['https://www.googleapis.com/auth/drive.file']
@@ -126,9 +126,10 @@ def download_doc(service,file_up,destination):
 
 
 class Phrase():
-	def __init__(self,phrase,prev=None,foll=None,page=None):
+	def __init__(self,phrase,ind=None,prev=None,foll=None,page=None):
 		self.phrase = phrase
 		self.translation = ""
+		self.index = ind
 		self.prev = prev
 		self.foll = foll
 		self.page = page
@@ -147,6 +148,9 @@ def translate_text(text,source="",target="en"):
     Target must be an ISO 639-1 language code.
     See https://g.co/cloud/translate/v2/translate-reference#supported_languages
     """
+    if text == "":
+    	return ""
+
     translate_client = translate.Client()# Or use direct credentials in translation_api.json
     # from google.oauth2 import service_account
 	# credentials = service_account.Credentials.from_service_account_file('/home/carter/Desktop/Cours/Thèse/Programming_economics/translation_project/translation_api.json')
