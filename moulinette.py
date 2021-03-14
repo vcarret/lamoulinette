@@ -49,30 +49,79 @@ class Moulinette(tk.Tk):
         self.settings_frame = ttk.Labelframe(self.top, text="Settings")
         self.settings_frame.pack(fill=tk.BOTH, padx=10,pady=5,ipadx=5,ipady=5)
 
-        ttk.Label(self.settings_frame, text='File: ').grid(column=0,row=0)
-        self.filepath_entry = ttk.Entry(self.settings_frame, font=self.default_font)
+        self.notebook_settings = ttk.Notebook(self.settings_frame)
+        self.notebook_settings.pack(fill=tk.BOTH, padx=10,pady=5,ipadx=5,ipady=5,expand=True)
+
+        # Loading settings
+        self.load_settings = ttk.Frame(self.notebook_settings)
+        # self.load_settings.pack(fill=tk.BOTH,expand=True)
+        # self.notebook_settings.add(self.load_settings)
+
+        ttk.Label(self.load_settings, text='File: ').grid(column=0,row=0)
+        self.filepath_entry = ttk.Entry(self.load_settings, font=self.default_font)
         self.filepath_entry.grid(column=1,row=0, pady=(2,2), sticky="nsew")
-        self.filepath_entry.insert(0,"/home/carter/Desktop/Cours/Thèse/Programming_economics/translation_project/Tinbergen - 1930 - De werkloosheid.pdf")
-        self.browse_button = ttk.Button(self.settings_frame, text="Browse", command=self.browseFiles)
+        self.filepath_entry.insert(0,"/home/carter/Documents/Moulinette/Tinbergen - 1930 - De werkloosheid/project.moul")#/home/carter/Desktop/Cours/Thèse/Programming_economics/translation_project/Tinbergen - 1930 - De werkloosheid.pdf
+        self.browse_button = ttk.Button(self.load_settings, text="Browse", command=self.browseFiles)
         self.browse_button.grid(column=2,row=0, pady=(2,2), sticky="nsew", padx=(5,5))
 
-        self.browse_button = ttk.Button(self.settings_frame, text="Load File", command=self.loadFile)
-        self.browse_button.grid(column=1,row=1,columnspan=2, pady=(2,2), sticky="nsew", padx=(5,5))
+        self.load_button = ttk.Button(self.load_settings, text="Load File", command=self.loadFile)
+        self.load_button.grid(column=1,row=1,columnspan=2, pady=(2,2), sticky="nsew", padx=(5,5))
 
         self.project = ""
         
         self.doOCR = tk.BooleanVar()
         self.doOCR.set(False)
-        ttk.Checkbutton(self.settings_frame, text='do OCR', variable=self.doOCR,onvalue=True,offvalue=False).grid(column=3,row=0,padx=(5,5), pady=(2,2))
+        ttk.Checkbutton(self.load_settings, text='do OCR', variable=self.doOCR,onvalue=True,offvalue=False).grid(column=3,row=0,padx=(5,5), pady=(2,2))
 
         self.doTranslate = tk.BooleanVar()
         self.doTranslate.set(False)
-        ttk.Checkbutton(self.settings_frame, text='Translate', variable=self.doTranslate,onvalue=True,offvalue=False).grid(column=4,row=0,padx=(5,5), pady=(2,2))
+        ttk.Checkbutton(self.load_settings, text='Translate', variable=self.doTranslate,onvalue=True,offvalue=False).grid(column=4,row=0,padx=(5,5), pady=(2,2))
 
-        ttk.Label(self.settings_frame, text='Language: ').grid(column=3,row=1,padx=(5,5), pady=(2,2))
+        ttk.Label(self.load_settings, text='Language: ').grid(column=3,row=1,padx=(5,5), pady=(2,2))
         self.lang = tk.StringVar()
-        ttk.Combobox(self.settings_frame, textvariable=self.lang, font=self.default_font,state="readonly", 
+        ttk.Combobox(self.load_settings, textvariable=self.lang, font=self.default_font,state="readonly", 
             values=("Dutch","German","Italian")).grid(column=4,row=1, pady=(2,2), sticky="nsew", columnspan=2)
+
+        # Editing settings
+        self.edit_settings = ttk.Frame(self.notebook_settings)
+        # self.edit_settings.pack(fill=tk.BOTH,expand=True)
+
+        self.insert_button = ttk.Button(self.edit_settings, text="I",width=2, command=self.insertMark)
+        self.insert_button.grid(column=0,row=0,columnspan=1, pady=(2,2), sticky="nsew", padx=(2,2))
+
+        self.dontTranslate_button = ttk.Button(self.edit_settings, text="Ⱦ",width=2, command=self.dontTranslate)
+        self.dontTranslate_button.grid(column=1,row=0,columnspan=1, pady=(2,2), sticky="nsew", padx=(2,2))
+
+        self.findBox = ttk.Entry(self.edit_settings, font=self.default_font)
+        self.findBox.grid(column=0,row=1,columnspan=2, pady=(2,2), sticky="nsew", padx=(2,2))
+        self.findBox.bind("<Return>", self.find)
+
+        self.find = ttk.Button(self.edit_settings, text="Find", command=self.find)
+        self.find.grid(column=2,row=1,columnspan=1, pady=(2,2), sticky="nsew", padx=(2,2))
+
+        self.replaceBox = ttk.Entry(self.edit_settings, font=self.default_font)
+        self.replaceBox.grid(column=3,row=1,columnspan=2, pady=(2,2), sticky="nsew", padx=(2,2))
+        self.replaceBox.bind("<Return>", self.replace)
+
+        self.replace = ttk.Button(self.edit_settings, text="Replace", command=self.replace)
+        self.replace.grid(column=5,row=1,columnspan=1, pady=(2,2), sticky="nsew", padx=(2,2))
+
+        self.regexp = tk.BooleanVar()
+        self.regexp.set(False)
+        ttk.Checkbutton(self.edit_settings, text='regexp?', variable=self.regexp,onvalue=True,offvalue=False).grid(column=0,row=3,padx=(2,2), pady=(2,2))
+
+        self.nocase = tk.BooleanVar()
+        self.nocase.set(True)
+        ttk.Checkbutton(self.edit_settings, text='nocase?', variable=self.nocase,onvalue=True,offvalue=False).grid(column=1,row=3,padx=(2,2), pady=(2,2))
+
+        self.exact = tk.BooleanVar()
+        self.exact.set(False)
+        ttk.Checkbutton(self.edit_settings, text='exact?', variable=self.exact,onvalue=True,offvalue=False).grid(column=2,row=3,padx=(2,2), pady=(2,2))
+
+
+        # End notebook settings
+        self.notebook_settings.add(self.load_settings,text="Load")
+        self.notebook_settings.add(self.edit_settings,text="Edit")
 
         # Left editor (original text)
         self.editor_left = tk.Text(wrap="word", background="white",undo=True,autoseparators=True,maxundo=-1,borderwidth=0, highlightthickness=0,spacing3=10)
@@ -90,9 +139,39 @@ class Moulinette(tk.Tk):
         self.scrollbar_right.pack(in_=self.right,side=tk.RIGHT,fill=tk.Y,expand=False)
         self.editor_right.pack(in_=self.right,side=tk.LEFT,expand=True,fill=tk.BOTH)
 
+        # Tags
+        self.editor_left.tag_configure("current_phrase", background="#d8d8d8")
+
         # Bindings
         self.bind("<Control-s>", self.saveFile)
         self.bind("<Control-Shift-S>", self.saveFileAndTranslate)
+        self.bind("<Control-i>", self.insertMark)
+        self.unbind("<Control-f>")
+        self.bind("<Control-Alt-f>", self.setFocusFinder)
+        self.editor_left.bind("<Control-f>", self.setFocusFinder)
+        self.bind("<Control-h>", self.setFocusReplace)
+        self.editor_left.bind("<Control-a>", self.selectAll)
+
+    def insertMark(self):
+        cur_pos = self.editor_left.index("insert")
+        prev_mark = self.editor_left.mark_previous(cur_pos)
+        pos_beg = self.editor_left.mark_previous(prev_mark)
+        num = prev_mark.split("_")[2]
+        pos_end = self.editor_left.index("end_phrase_"+format(num))
+
+        self.editor_left.insert(cur_pos, "•")
+        self.editor_left.mark_set("end_phrase_"+format(num),cur_pos)
+        self.text["phrase_"+format(num)].phrase = self.editor_left.get(pos_beg,cur_pos).replace("•","")
+
+        self.text["n_phrases"] += 1
+
+        self.editor_left.mark_set("beg_phrase_"+format(self.text["n_phrases"]),cur_pos+"+1c")        
+        self.editor_left.mark_set("end_phrase_"+format(self.text["n_phrases"]),pos_end)
+        new_ph = self.editor_left.get(cur_pos,pos_end).replace("•","")
+
+        self.text['phrase_'+format(self.text["n_phrases"])] = Phrase(new_ph,index=self.text["n_phrases"],prev=num,foll=self.text["phrase_"+format(num)].foll)
+
+        self.text["phrase_"+format(num)].foll = format(self.text["n_phrases"])
 
     def saveFile(self,event):
         original_text = self.editor_left.get('1.0', tk.END)
@@ -129,33 +208,52 @@ class Moulinette(tk.Tk):
     def rebuildPhrases(self):
         marks = self.editor_left.dump('1.0', tk.END, **{"mark":True})
         begend_prev = None
-        for i,(_,name,ind) in enumerate(marks):
+        first = True
+        for i,(obj,name,ind) in enumerate(marks):
             tmp = name.split("_")
             begend = tmp[0]
             try:
                 num = tmp[2]
             except:
                 continue
+
             if i > 0:
                 if begend == "beg" and begend == begend_prev:
+                    # Displace the index to the place of the index that is being deleted
+                    prev_ind = self.editor_left.index("beg_phrase_"+num_prev)
+                    self.editor_left.mark_set("beg_phrase_"+num,prev_ind)
+
                     self.editor_left.mark_unset("beg_phrase_"+num_prev)
                     self.editor_left.mark_unset("end_phrase_"+num_prev)
-                    del self.text["phrase_"+num_prev]
+                    prev = self.text["phrase_"+num_prev].prev
+                    foll = self.text["phrase_"+num_prev].foll
+                    if prev is not None:
+                        self.text["phrase_"+format(prev)].foll = foll
+                    else:
+                        self.text["first"] = foll
+                    if foll is not None:
+                        self.text["phrase_"+format(foll)].prev = prev
+                    else:
+                        self.text["last"] = prev
+                    del self.text["phrase_"+format(num_prev)]
 
             begend_prev = begend
             num_prev = num
 
     def checkChanges(self):
-        for i,(k,phrase) in enumerate(self.text.items()):
-            # if phrase.changed:
-            #     continue
+        i = self.text["phrase_"+format(self.text["first"])].index
+        while i is not None:
+            key = "phrase_"+format(i)
+            phrase = self.text[key]
+
             beg_phrase = self.editor_left.index("beg_phrase_"+format(phrase.index))
             end_phrase = self.editor_left.index("end_phrase_"+format(phrase.index))
             cur_phrase = self.editor_left.get(beg_phrase,end_phrase)
             if phrase.phrase != cur_phrase:
-                print(cur_phrase)
                 phrase.phrase = cur_phrase
                 phrase.changed = True
+
+            i = self.text[key].foll
 
     def loadFile(self):
         '''
@@ -171,6 +269,7 @@ class Moulinette(tk.Tk):
             self.project = extractOCR(file,ROOT,self.project,self.doOCR.get())
             self.buildPhrasesFromOriginal()
         elif file_ext.lower() == "moul":
+            self.project = file.split(".")[0].split(PATH_SEP)[-2]
             with open(file, 'rb') as dict_phrases:
                 self.text = pickle.load(dict_phrases)
             self.buildPhrasesFromProject()
@@ -181,6 +280,8 @@ class Moulinette(tk.Tk):
         if self.doTranslate.get():
             self.translateText()
 
+        self.highlight_current_line()
+
     def buildPhrasesFromOriginal(self):
         with open(ROOT + self.project + PATH_SEP + "original.txt","r") as f:
             text = f.read()
@@ -188,14 +289,15 @@ class Moulinette(tk.Tk):
         self.text = {}
 
         phrases = re.split("(?<!\d)(?<!\s\S)(?<!\S\.\S)[\.\!\?](?!\))(?!\d)",text)
+        self.editor_left.insert("1.0", "•")
         for i,ph in enumerate(phrases):
             cur_ph = " " + ph.strip() + "."
+            cur_ph = cur_ph.replace("•","*")
             # Perhaps do other operations such as detection of endline break
-            if i == 0:
-                self.text['phrase_'+format(i)] = Phrase(cur_ph,ind=i,foll=i+1)
-                self.editor_left.insert("insert", "•")
-            else:
-                self.text['phrase_'+format(i)] = Phrase(cur_ph,ind=i,prev=i-1,foll=i+1)
+
+            prev = i-1 if i > 0 else None
+            foll = i+1 if i < (len(phrases)-1) else None
+            self.text['phrase_'+format(i)] = Phrase(cur_ph,index=i,prev=prev,foll=foll)
 
             self.editor_left.mark_set("beg_phrase_"+format(i),"insert")
             self.editor_left.mark_gravity("beg_phrase_"+format(i),tk.LEFT)
@@ -208,45 +310,53 @@ class Moulinette(tk.Tk):
             self.editor_left.mark_set("end_phrase_"+format(i),new_ind)
             self.editor_left.mark_gravity("end_phrase_"+format(i),tk.RIGHT)
         
-        self.n_phrases = i
+        self.text["first"] = 0
+        self.text["last"] = i
+        self.text["n_phrases"] = i
 
     def buildPhrasesFromProject(self):
-        for i, (key,phrase) in enumerate(self.text.items()):
-            if i == 0:
-                self.editor_left.insert("insert", "•")
-                self.editor_right.insert("insert", "•")
-
-            self.editor_left.mark_set("beg_phrase_" + format(i),tk.END)
-            self.editor_left.mark_gravity("beg_phrase_"+format(i),tk.LEFT)
-            self.editor_right.mark_set("beg_phrase_" + format(i),tk.END)
-            self.editor_right.mark_gravity("beg_phrase_"+format(i),tk.LEFT)
+        i = self.text["phrase_"+format(self.text["first"])].index       
+        self.editor_left.insert("insert", "•")
+        self.editor_right.insert("insert", "•")
+        while i is not None:
+            key = "phrase_"+format(i)
+            phrase = self.text[key]
+        # for i, (key,phrase) in enumerate(self.text.items()):
+            self.editor_left.mark_set("beg_" + key,"insert")
+            self.editor_left.mark_gravity("beg_"+key,tk.LEFT)
+            self.editor_right.mark_set("beg_" + key,"insert")
+            self.editor_right.mark_gravity("beg_"+key,tk.LEFT)
 
             self.editor_left.insert("insert", phrase.phrase)
             self.editor_left.insert("insert", "•")
             cur_ind = self.editor_left.index("insert")
             new_ind = cur_ind+"-1c"
-            self.editor_left.mark_set("end_phrase_"+format(i),new_ind)
-            self.editor_left.mark_gravity("end_phrase_"+format(i),tk.RIGHT)
-            self.editor_left.update()
+            self.editor_left.mark_set("end_"+key,new_ind)
+            self.editor_left.mark_gravity("end_"+key,tk.RIGHT)
+            # self.editor_left.update()
 
             self.editor_right.insert("insert", phrase.translation)
             self.editor_right.insert("insert", "•")
             cur_ind = self.editor_right.index("insert")
             new_ind = cur_ind+"-1c"
-            self.editor_right.mark_set("end_phrase_"+format(i),new_ind)
-            self.editor_right.mark_gravity("end_phrase_"+format(i),tk.RIGHT)
-            self.editor_right.update()
+            self.editor_right.mark_set("end_"+key,new_ind)
+            self.editor_right.mark_gravity("end_"+key,tk.RIGHT)
+            # self.editor_right.update()
 
-        self.n_phrases = i
+            i = self.text[key].foll
 
     def translateText(self):
-        for i, (key,phrase) in enumerate(self.text.items()):
-            if i == 0:
-                self.editor_right.insert("insert", "•")
+        i = self.text["phrase_"+format(self.text["first"])].index       
+        self.editor_right.insert("insert", "•")
+        while i is not None:
+            key = "phrase_"+format(i)
+            phrase = self.text[key]
 
             self.editor_right.mark_set("beg_" + key,tk.END)
             self.editor_right.mark_gravity("beg_" + key,tk.LEFT)
-            if phrase.changed:
+            if not phrase.translate:
+                phrase.translation = phrase.phrase
+            elif phrase.changed:
                 # result = subprocess.run(["trans", lang_map[self.lang.get()] + ':en', '-brief', phrase.phrase], stdout=subprocess.PIPE)
                 # phrase.translation = result.stdout.decode('utf-8')[-1]
                 phrase.translation = translate_text(phrase.phrase,source=lang_map[self.lang.get()],target="en")
@@ -260,10 +370,84 @@ class Moulinette(tk.Tk):
             self.editor_right.mark_gravity("end_"+key,tk.RIGHT)
             self.editor_right.update()
 
-    # Utilities
-    def highlightText(self):
-        '''Use the current mark which tracks the mouse position'''
-        pass
+            i = self.text[key].foll
+
+    def dontTranslate(self):
+        # Maybe find a way to signal it?
+        cur_pos = self.editor_left.index("insert")
+        prev_mark = self.editor_left.mark_previous(cur_pos)
+        if prev_mark == "current":
+            prev_mark = self.editor_left.mark_previous(self.editor_left.index("current"))
+        self.text["phrase_"+prev_mark.split("_")[-1]].translate = False
+
+    def find(self,event=None):
+        self.editor_left.tag_remove('found','1.0',tk.END)
+        s = self.findBox.get()
+        if s:
+            idx = "1.0"
+            while True:
+                idx = self.editor_left.search(s,idx,stopindex=tk.END,nocase=self.nocase.get(),regexp=self.regexp.get(),exact=self.exact.get()) 
+                if not idx: 
+                    break
+
+                lastidx = '% s+% dc' % (idx, len(s)) 
+                self.editor_left.tag_add('found', idx, lastidx)  
+                idx = lastidx  
+
+            self.editor_left.tag_config('found', foreground ='red') 
+        self.findBox.focus_set() 
+
+    def replace(self,event=None):
+        self.editor_left.tag_remove('found','1.0',tk.END)
+        s = self.findBox.get()
+        r = self.replaceBox.get()
+        if s:
+            idx = "1.0"
+            while True:
+                idx = self.editor_left.search(s,idx,stopindex=tk.END,nocase=self.nocase.get(),regexp=self.regexp.get(),exact=self.exact.get()) 
+                if not idx: 
+                    break
+
+                lastidx = '% s+% dc' % (idx, len(s)) 
+                self.editor_left.delete(idx, lastidx)  
+                self.editor_left.insert(idx, r)
+
+                lastidx = '% s+% dc' % (idx, len(r)) 
+                self.editor_left.tag_add('found', idx, lastidx)  
+                idx = lastidx  
+
+            self.editor_left.tag_config('found', foreground ='green',background='yellow') 
+        self.findBox.focus_set() 
+
+    def selectAll(self,event):
+        self.editor_left.tag_add("sel","1.0",tk.END)
+        return "break"
+        # self.editor_left.icursor(tk.END)
+
+    def highlight_current_line(self, interval=100):
+        '''Updates the 'current line' highlighting every "interval" milliseconds'''
+        self.editor_left.tag_remove("current_phrase", 1.0, "end")
+        cur_pos = self.editor_left.index("insert")
+        prev_mark = self.editor_left.mark_previous(cur_pos)
+        if prev_mark == "current":
+            prev_mark = self.editor_left.mark_previous(self.editor_left.index("current"))
+        # try:
+        pos_beg = self.editor_left.index(prev_mark)
+        pos_end = self.editor_left.index(prev_mark.replace("beg","end"))
+        # except:
+            # pass
+        self.editor_left.tag_add("current_phrase", pos_beg, pos_end)
+        self.after(interval, self.highlight_current_line)
+
+
+    def setFocusFinder(self,event):
+        self.findBox.insert(0,self.editor_left.get("sel.first","sel.last"))
+        self.findBox.focus_set()
+        return "break"
+
+    def setFocusReplace(self,event):
+        self.replaceBox.insert(0,self.editor_left.get("sel.first","sel.last"))
+        self.replaceBox.focus_set()
 
     def browseFiles(self):
         filename = filedialog.askopenfilename(initialdir=ROOT)

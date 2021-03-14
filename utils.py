@@ -126,15 +126,16 @@ def download_doc(service,file_up,destination):
 
 
 class Phrase():
-	def __init__(self,phrase,ind=None,prev=None,foll=None,page=None):
+	def __init__(self,phrase,index=None,prev=None,foll=None,page=None):
 		self.phrase = phrase
 		self.translation = ""
-		self.index = ind
+		self.index = index
 		self.prev = prev
 		self.foll = foll
 		self.page = page
 		self.footnote = []
 		self.changed = True
+		self.translate = True
 
 class Footnote(Phrase):
 	def __init__(self):
@@ -151,15 +152,17 @@ def translate_text(text,source="",target="en"):
     if text == "":
     	return ""
 
+    clean_text = text.replace("\n"," ")
+
     translate_client = translate.Client()# Or use direct credentials in translation_api.json
     # from google.oauth2 import service_account
 	# credentials = service_account.Credentials.from_service_account_file('/home/carter/Desktop/Cours/Thèse/Programming_economics/translation_project/translation_api.json')
 
-    if isinstance(text, six.binary_type):
-        text = text.decode("utf-8")
+    if isinstance(clean_text, six.binary_type):
+        clean_text = clean_text.decode("utf-8")
 
     # Text can also be a sequence of strings, in which case this method
     # will return a sequence of results for each text.
-    result = translate_client.translate(text,source_language=source,target_language=target)
+    result = translate_client.translate(clean_text,source_language=source,target_language=target)
 
     return result["translatedText"]
