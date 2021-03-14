@@ -25,6 +25,7 @@ from tkinter import Scrollbar
 import tkinter.font as tkFont
 from utils import *
 import subprocess
+from PIL import ImageTk, Image
 
 class Moulinette(tk.Tk):
     def __init__(self):
@@ -38,18 +39,21 @@ class Moulinette(tk.Tk):
         self.content = ttk.Frame(self)
         self.top = ttk.Frame(self.content)
         self.left = ttk.Labelframe(self.content,text="Original Text")
-        self.right = ttk.Labelframe(self.content,text="Translated Text")
+        self.right = ttk.Frame(self.content)
 
         self.content.pack(fill = tk.BOTH,expand=True)
         self.top.pack(side = tk.TOP, fill = tk.X, padx=10,pady=5,ipadx=5,ipady=5)
         self.left.pack(side = tk.LEFT, expand=True, fill=tk.BOTH, padx=10,pady=5,ipadx=5,ipady=5)
         self.right.pack(side = tk.RIGHT, expand=True, fill=tk.BOTH, padx=10,pady=5,ipadx=5,ipady=5)
 
-        # Top settings
-        self.settings_frame = ttk.Labelframe(self.top, text="Settings")
-        self.settings_frame.pack(fill=tk.BOTH, padx=10,pady=5,ipadx=5,ipady=5)
+        # Functions
+        self.check_num_wrapper = (self.content.register(check_num), '%P')
 
-        self.notebook_settings = ttk.Notebook(self.settings_frame)
+        # Top settings
+        # self.settings_frame = ttk.Labelframe(self.top, text="Settings")
+        # self.settings_frame.pack(fill=tk.BOTH, padx=10,pady=5,ipadx=5,ipady=5)
+
+        self.notebook_settings = ttk.Notebook(self.top)
         self.notebook_settings.pack(fill=tk.BOTH, padx=10,pady=5,ipadx=5,ipady=5,expand=True)
 
         # Loading settings
@@ -81,6 +85,12 @@ class Moulinette(tk.Tk):
         self.lang = tk.StringVar()
         ttk.Combobox(self.load_settings, textvariable=self.lang, font=self.default_font,state="readonly", 
             values=("Dutch","German","Italian")).grid(column=4,row=1, pady=(2,2), sticky="nsew", columnspan=2)
+
+        ttk.Label(self.load_settings,text='First Page: ').grid(column=6, row=0, sticky='nsew')
+        self.firstpage = tk.StringVar()
+        self.firstPageBox = ttk.Entry(self.load_settings, textvariable=self.firstpage, validate='key', validatecommand=self.check_num_wrapper)
+        self.firstPageBox.grid(column=7, row=0, sticky='nsew')
+        self.firstPageBox.insert(0,1)
 
         # Editing settings
         self.edit_settings = ttk.Frame(self.notebook_settings)
@@ -131,16 +141,44 @@ class Moulinette(tk.Tk):
         self.scrollbar_left.pack(in_=self.left,side=tk.RIGHT,fill=tk.Y,expand=False)
         self.editor_left.pack(in_=self.left,side=tk.LEFT,expand=True,fill=tk.BOTH)
         
+        # Right panel
+        self.notebook_rightpanel = ttk.Notebook(self.right)
+        self.notebook_rightpanel.pack(fill=tk.BOTH, padx=10,pady=5,ipadx=5,ipady=5,expand=True)
+
         # Right editor (translated text)
+        self.right_editor_content = ttk.Frame(self.notebook_rightpanel)
+        self.right_editor_content.pack(fill=tk.BOTH, padx=10,pady=5,ipadx=5,ipady=5,expand=True)
+
         self.editor_right = tk.Text(wrap="word", background="white",undo=True,autoseparators=True,maxundo=-1,borderwidth=0, highlightthickness=0)
         self.scrollbar_right = Scrollbar(orient="vertical", borderwidth=1,command=self.editor_right.yview)
 
         self.editor_right.configure(yscrollcommand=self.scrollbar_right.set)
-        self.scrollbar_right.pack(in_=self.right,side=tk.RIGHT,fill=tk.Y,expand=False)
-        self.editor_right.pack(in_=self.right,side=tk.LEFT,expand=True,fill=tk.BOTH)
+        self.scrollbar_right.pack(in_=self.right_editor_content,side=tk.RIGHT,fill=tk.Y,expand=False)
+        self.editor_right.pack(in_=self.right_editor_content,side=tk.LEFT,expand=True,fill=tk.BOTH)
+
+        # Right viewer
+        self.right_viewer_content = ttk.Frame(self.notebook_rightpanel)
+        self.right_viewer_content.pack(fill=tk.BOTH, padx=2,pady=2,ipadx=2,ipady=2,expand=True)
+
+        self.scrollbar_viewer_right = Scrollbar(self.right_viewer_content,orient="vertical", borderwidth=1)
+        self.viewer_right = tk.Canvas(self.right_viewer_content,background='gray65',yscrollcommand=self.scrollbar_viewer_right.set)#, scrollregion=(0, 0, 1000, 1000))
+        # self.viewer_right.pack(fill=tk.BOTH, padx=2,pady=2,ipadx=2,ipady=2,expand=True)
+        self.scrollbar_viewer_right.config(command=self.viewer_right.yview)
+
+        # self.viewer_right.configure()
+        self.scrollbar_viewer_right.pack(side=tk.RIGHT,fill=tk.Y,expand=False)
+        self.viewer_right.pack(side=tk.LEFT,expand=True,fill=tk.BOTH)
+        self.viewer_right.config(scrollregion=self.right_viewer_content.bbox(tk.ALL))
+
+
+        # End notebook settings
+        self.notebook_rightpanel.add(self.right_viewer_content,text="Viewer")
+        self.notebook_rightpanel.add(self.right_editor_content,text="Translation")
+
 
         # Tags
         self.editor_left.tag_configure("current_phrase", background="#d8d8d8")
+        self.editor_left.tag_lower("current_phrase")
 
         # Bindings
         self.bind("<Control-s>", self.saveFile)
@@ -152,9 +190,10 @@ class Moulinette(tk.Tk):
         self.bind("<Control-h>", self.setFocusReplace)
         self.editor_left.bind("<Control-a>", self.selectAll)
 
-    def insertMark(self):
+    def insertMark(self,event=None):
         cur_pos = self.editor_left.index("insert")
-        prev_mark = self.editor_left.mark_previous(cur_pos)
+        prev_mark = self.getBegPhrase(cur_pos)
+        print(prev_mark)
         pos_beg = self.editor_left.mark_previous(prev_mark)
         num = prev_mark.split("_")[2]
         pos_end = self.editor_left.index("end_phrase_"+format(num))
@@ -177,6 +216,10 @@ class Moulinette(tk.Tk):
         original_text = self.editor_left.get('1.0', tk.END)
         translated_text = self.editor_right.get('1.0', tk.END)
 
+        if self.project == "":
+            msg.showerror("Error", "No project selected")
+            return
+
         with open(ROOT + self.project + PATH_SEP + "original.txt", "w") as f:
             f.write(original_text.replace("•",""))
         with open(ROOT + self.project + PATH_SEP + "translation.txt", "w") as f:
@@ -186,7 +229,7 @@ class Moulinette(tk.Tk):
         self.checkChanges()
         [print(x) for x in self.editor_left.dump('1.0', tk.END, **{"mark":True,'text':True})]
         with open(ROOT + self.project + PATH_SEP + 'project.moul', 'wb') as dict_phrases:
-            pickle.dump(self.text, dict_phrases)
+            pickle.dump((self.project,self.text), dict_phrases)
 
     def saveFileAndTranslate(self,event):
         original_text = self.editor_left.get('1.0', tk.END)
@@ -203,7 +246,7 @@ class Moulinette(tk.Tk):
             f.write(translated_text.replace("•",""))
 
         with open(ROOT + self.project + PATH_SEP + 'project.moul', 'wb') as dict_phrases:
-            pickle.dump(self.text, dict_phrases)
+            pickle.dump((self.project,self.text), dict_phrases)
 
     def rebuildPhrases(self):
         marks = self.editor_left.dump('1.0', tk.END, **{"mark":True})
@@ -266,12 +309,12 @@ class Moulinette(tk.Tk):
 
         file_ext = file.split(".")[-1]
         if file_ext.lower() == "pdf":
-            self.project = extractOCR(file,ROOT,self.project,self.doOCR.get())
+            self.project = extractOCR(file,ROOT,self.project,self.doOCR.get(),int(self.firstpage.get()))
             self.buildPhrasesFromOriginal()
         elif file_ext.lower() == "moul":
-            self.project = file.split(".")[0].split(PATH_SEP)[-2]
             with open(file, 'rb') as dict_phrases:
-                self.text = pickle.load(dict_phrases)
+                self.project,self.text = pickle.load(dict_phrases)
+            #self.project = file.split(".")[0].split(PATH_SEP)[-2]
             self.buildPhrasesFromProject()
         else:
             msg.showerror("Error", "Wrong file extension")
@@ -280,7 +323,24 @@ class Moulinette(tk.Tk):
         if self.doTranslate.get():
             self.translateText()
 
+        self.loadViewer()
         self.highlight_current_line()
+
+    def loadViewer(self):
+        self.update()
+        height, width = self.right_viewer_content.winfo_height(),self.right_viewer_content.winfo_width()
+        self.images = []
+        root_path = ROOT + self.project + PATH_SEP + "orig_images" + PATH_SEP
+        for i,path in enumerate(os.listdir(root_path)):
+            self.images.append(Image.open(root_path + path).resize((height, width), Image.ANTIALIAS))
+
+            image = ImageTk.PhotoImage(self.images[i])
+            print(image.width(),image.height())
+            self.viewer_right.create_image((50, height*i+10), image=image,anchor='nw')
+            # self.viewer_right.image = image
+                
+        self.viewer_right.configure(scrollregion = self.viewer_right.bbox("all"))
+
 
     def buildPhrasesFromOriginal(self):
         with open(ROOT + self.project + PATH_SEP + "original.txt","r") as f:
@@ -375,9 +435,7 @@ class Moulinette(tk.Tk):
     def dontTranslate(self):
         # Maybe find a way to signal it?
         cur_pos = self.editor_left.index("insert")
-        prev_mark = self.editor_left.mark_previous(cur_pos)
-        if prev_mark == "current":
-            prev_mark = self.editor_left.mark_previous(self.editor_left.index("current"))
+        prev_mark = self.getBegPhrase(cur_pos)
         self.text["phrase_"+prev_mark.split("_")[-1]].translate = False
 
     def find(self,event=None):
@@ -428,9 +486,7 @@ class Moulinette(tk.Tk):
         '''Updates the 'current line' highlighting every "interval" milliseconds'''
         self.editor_left.tag_remove("current_phrase", 1.0, "end")
         cur_pos = self.editor_left.index("insert")
-        prev_mark = self.editor_left.mark_previous(cur_pos)
-        if prev_mark == "current":
-            prev_mark = self.editor_left.mark_previous(self.editor_left.index("current"))
+        prev_mark = self.getBegPhrase(cur_pos)
         # try:
         pos_beg = self.editor_left.index(prev_mark)
         pos_end = self.editor_left.index(prev_mark.replace("beg","end"))
@@ -439,6 +495,12 @@ class Moulinette(tk.Tk):
         self.editor_left.tag_add("current_phrase", pos_beg, pos_end)
         self.after(interval, self.highlight_current_line)
 
+
+    def getBegPhrase(self,cur_pos):
+        prev_mark = self.editor_left.mark_previous(cur_pos)
+        if prev_mark == "current" or prev_mark == "tk::anchor1":
+            prev_mark = self.editor_left.mark_previous(self.editor_left.index("current"))
+        return prev_mark
 
     def setFocusFinder(self,event):
         self.findBox.insert(0,self.editor_left.get("sel.first","sel.last"))

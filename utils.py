@@ -30,7 +30,7 @@ lang_map = {
 }
 
 
-def extractOCR(file, root, project, doOCR):
+def extractOCR(file, root, project, doOCR, firstpage=1):
 	pdf = pdfplumber.open(file)# Returns a PDF object
 
 	if project == "":
@@ -43,12 +43,13 @@ def extractOCR(file, root, project, doOCR):
 	destination = proj_path + PATH_SEP + "original.txt"
 
 	if doOCR:
-		pages = split_pdf(file)
+		pages = split_pdf(file,project,firstpage)
 		service = auth_drive()
 		for i,page in enumerate(pages):
 			file_up = upload_doc(service,page)
 			download_doc(service,file_up,destination)
 	else:# Just try to extract the text
+		pages = split_pdf(file,project,firstpage)
 		txt_file = open(destination, "w") 
 		for n, page in enumerate(pdf.pages):
 			text = page.extract_text()
@@ -85,12 +86,12 @@ def auth_drive():
     service = build('drive', 'v3', credentials=creds)
     return service
 
-def split_pdf(file):
-	out = "orig_images"
+def split_pdf(file,project,firstpage=1):
+	out = ROOT + project + PATH_SEP + "orig_images"
 	if not path.exists(out):
 		mkdir(out)
 	
-	pages = convert_from_path(file, dpi=300,output_file="",output_folder=out,first_page=2,fmt='jpeg',paths_only=True)
+	pages = convert_from_path(file, dpi=300,output_file="",output_folder=out,first_page=firstpage,fmt='jpeg',paths_only=True)
 	return pages
 
 def upload_doc(service,file):
@@ -166,3 +167,6 @@ def translate_text(text,source="",target="en"):
     result = translate_client.translate(clean_text,source_language=source,target_language=target)
 
     return result["translatedText"]
+
+def check_num(newval):
+    return re.match('^[0-9]*$', newval) is not None and len(newval) <= 5
