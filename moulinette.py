@@ -1,6 +1,7 @@
 # Some useful links:
 # General:
 # https://www.tcl.tk/man/tcl8.4/TkCmd/text.htm
+# https://docs.python.org/3/library/tk.html
 # https://anzeljg.github.io/rin2/book2/2405/docs/tkinter/text.html
 # https://stackoverflow.com/questions/21717115/using-tk-to-create-a-text-editor
 # https://github.com/manjunathb4461/text-editor-with-tkinter/blob/master/main.py
@@ -10,10 +11,11 @@
 # Images:
 # https://pillow.readthedocs.io/en/stable/reference/ImageGrab.html
 # https://github.com/ponty/pyscreenshot
+# Line numbers:
+# https://stackoverflow.com/a/16375233
 import requests
 import os
 import re
-import platform
 import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox as msg
@@ -21,15 +23,7 @@ from tkinter import filedialog
 from tkinter import Scrollbar
 import tkinter.font as tkFont
 from utils import *
-
-if platform.system() == "Windows":
-    PATH_SEP = "\\"
-else:
-    PATH_SEP = "/"
-
-ROOT = '/home/carter/Documents/Moulinette/'
-PROJECT = 'Tinbergen - 1930 - De werkloosheid'
-
+import subprocess
 
 class Moulinette(tk.Tk):
     def __init__(self):
@@ -57,8 +51,8 @@ class Moulinette(tk.Tk):
         ttk.Label(self.settings_frame, text='File: ').grid(column=0,row=0)
         self.filepath_entry = ttk.Entry(self.settings_frame, font=self.default_font)
         self.filepath_entry.grid(column=1,row=0, pady=(2,2), sticky="nsew")
-        # self.filepath_entry.insert(0,"/home/carter/Desktop")
-        self.browse_button = ttk.Button(self.settings_frame, text="Browse", command=self.browseDir)
+        self.filepath_entry.insert(0,"/home/carter/Desktop/Cours/Thèse/Programming_economics/translation_project/Tinbergen - 1930 - De werkloosheid.pdf")
+        self.browse_button = ttk.Button(self.settings_frame, text="Browse", command=self.browseFiles)
         self.browse_button.grid(column=2,row=0, pady=(2,2), sticky="nsew", padx=(5,5))
 
         self.browse_button = ttk.Button(self.settings_frame, text="Load File", command=self.loadFile)
@@ -72,6 +66,11 @@ class Moulinette(tk.Tk):
         self.doTranslate.set(False)
         ttk.Checkbutton(self.settings_frame, text='Translate', variable=self.doTranslate,onvalue=True,offvalue=False).grid(column=4,row=0,padx=(5,5), pady=(2,2))
 
+        ttk.Label(self.settings_frame, text='Language: ').grid(column=3,row=1,padx=(5,5), pady=(2,2))
+        self.lang = tk.StringVar()
+        ttk.Combobox(self.settings_frame, textvariable=self.lang, font=self.default_font,state="readonly", 
+            values=("Dutch","German","Italian")).grid(column=4,row=1, pady=(2,2), sticky="nsew", columnspan=2)
+
         # Left editor (original text)
         self.editor_left = tk.Text(wrap="word", background="white",undo=True,autoseparators=True,maxundo=-1,borderwidth=0, highlightthickness=0,spacing3=10)
         self.scrollbar_left = Scrollbar(orient="vertical", borderwidth=1,command=self.editor_left.yview)
@@ -81,15 +80,33 @@ class Moulinette(tk.Tk):
         self.editor_left.pack(in_=self.left,side=tk.LEFT,expand=True,fill=tk.BOTH)
         
         # Right editor (translated text)
-        self.editor_right = tk.Text(wrap="word", background="white",borderwidth=0, highlightthickness=0)
+        self.editor_right = tk.Text(wrap="word", background="white",undo=True,autoseparators=True,maxundo=-1,borderwidth=0, highlightthickness=0)
         self.scrollbar_right = Scrollbar(orient="vertical", borderwidth=1,command=self.editor_right.yview)
 
         self.editor_right.configure(yscrollcommand=self.scrollbar_right.set)
         self.scrollbar_right.pack(in_=self.right,side=tk.RIGHT,fill=tk.Y,expand=False)
         self.editor_right.pack(in_=self.right,side=tk.LEFT,expand=True,fill=tk.BOTH)
 
+        # Bindings
+        self.editor_left.bind("<Control-s>", self.saveFile)
+        self.editor_left.bind("<Control-Shift-s>", self.saveFileAndTranslate)
 
-        # self.editor_left.bind("<space>", self.printTags)
+    def saveFile(self,event):
+        original_text = self.editor_left.get('1.0', tk.END)
+        translated_text = self.editor_right.get('1.0', tk.END)
+        print(self.editor_left.dump('1.0', tk.END))
+
+        with open(ROOT + PROJECT + PATH_SEP + "original.txt", "w") as f:
+            f.write(original_text.replace("•",""))
+        with open(ROOT + PROJECT + PATH_SEP + "translation.txt", "w") as f:
+            f.write(translated_text.replace("•",""))
+
+        with open(ROOT + PROJECT + PATH_SEP + 'project.moul', 'wb') as dict_phrases:
+            pickle.dump(self.text, dict_phrases)
+
+    def saveFileAndTranslate(self,event):
+        self.translateText()
+        self.saveFile()
 
     def printTags(self):
         current_tags = self.editor_left.tag_names()
@@ -97,66 +114,107 @@ class Moulinette(tk.Tk):
 
     def loadFile(self):
         '''
-        Load file, either an internal Moulinette file (a current translation) or a pdf file to ocr and translate
+        Load file, either a project folder or a pdf file to ocr and translate
         '''
         file = self.filepath_entry.get()
         if file == "":
-            msg.showerror("Error", "Please select a .pdf or a .moul file")
+            msg.showerror("Error", "Please select a .pdf file or a folder")
             return
 
         file_ext = file.split(".")[-1]
         if file_ext.lower() == "pdf":
-            doOCR(file,ROOT,PROJECT,self.doOCR.get())    
+            extractOCR(file,ROOT,PROJECT,self.doOCR.get())
+            self.buildPhrasesFromOriginal()
         elif file_ext.lower() == "moul":
-            pass
+            with open(file, 'rb') as dict_phrases:
+                self.text = pickle.load(dict_phrases)
+            self.buildPhrasesFromProject()
         else:
             msg.showerror("Error", "Wrong file extension")
             return
 
-        # for index, (key,value) in enumerate(phrases.items()):
-            
+        if self.doTranslate.get():
+            self.translateText()
+
+    def buildPhrasesFromOriginal(self):
+        with open(ROOT + PROJECT + PATH_SEP + "original.txt","r") as f:
+            text = f.read()
+
+        self.text = {}
+
+        phrases = re.split("(?<!\d)(?<!\s\S)(?<!\S\.\S)[\.\!\?](?!\))(?!\d)",text)
+        for i,ph in enumerate(phrases):
+            cur_ph = " " + ph.strip() + "."
+            # Perhaps do other operations such as detection of endline break
+            if i == 0:
+                self.text['phrase_'+format(i)] = Phrase(cur_ph,foll=i+1)
+                self.editor_left.mark_set("beg_phrase_"+format(i),"insert")
+                self.editor_left.mark_gravity("beg_phrase_"+format(i),tk.LEFT)
+            else:
+                self.text['phrase_'+format(i)] = Phrase(cur_ph,prev=i-1,foll=i+1)
+
+            self.editor_left.insert("insert", cur_ph)
+            self.editor_left.mark_set("end_phrase_"+format(i),"insert")
+            self.editor_left.mark_gravity("end_phrase_"+format(i),tk.LEFT)
+            cur_ind = self.editor_left.index("end_phrase_"+format(i))
+            new_ind = format(float(cur_ind) + 0.1)
+            self.editor_left.insert(new_ind, "•")
+            self.editor_left.mark_set("beg_phrase_"+format(i+1),"insert")
+            self.editor_left.mark_gravity("beg_phrase_"+format(i),tk.LEFT)
+            self.editor_left.update()
+        
+        self.n_phrases = i
+
+    def buildPhrasesFromProject(self):
+        for i, (key,phrase) in enumerate(self.text.items()):
+            if i == 0:
+                self.editor_left.mark_set("beg_phrase_" + format(i),tk.END)
+                self.editor_right.mark_set("beg_phrase_" + format(i),tk.END)
+
+            self.editor_left.insert(tk.END, phrase.phrase)
+            self.editor_left.mark_set("end_phrase_"+format(i),tk.END)
+            self.editor_left.insert(tk.END, "•")
+            self.editor_left.mark_set("beg_phrase_"+format(i+1),tk.END)
+            self.editor_left.update()
+
+            if phrase.translation != '':
+                self.editor_right.insert(tk.END,phrase.translation)
+                self.editor_right.mark_set("end_phrase_"+format(i),tk.END)
+                self.editor_right.mark_gravity("end_phrase_"+format(i),tk.LEFT)
+                self.editor_right.insert(tk.END, "•")
+                self.editor_right.mark_set("end_phrase_"+format(i+1),tk.END)
+                self.editor_right.update()
+
+        self.n_phrases = i
+
+    def translateText(self):
+        for i, (key,phrase) in enumerate(self.text.items()):
+            if i == 0:
+                self.editor_right.mark_set("beg_" + key,tk.END)
+            if phrase.changed:
+                # result = subprocess.run(["trans", lang_map[self.lang.get()] + ':en', '-brief', phrase.phrase], stdout=subprocess.PIPE)
+                # phrase.translation = result.stdout.decode('utf-8')[-1]
+                phrase.translation = translate_text(phrase.phrase,source=lang_map[self.lang.get()],target="en")
+                phrase.changed = False
+
+            self.editor_right.insert(tk.END,phrase.translation)
+            self.editor_right.mark_set("end_" + key,tk.END)
+            self.editor_right.mark_gravity("end_phrase_"+format(i),tk.LEFT)
+            self.editor_right.insert(tk.END, "•")
+            self.editor_right.mark_set("beg_" + key,tk.END)
+            self.editor_right.update()
 
     # Utilities
-    def onFrameConfigure(self, event):
-        '''Reset the scroll region to encompass the inner frame'''
-        try:
-            self.canvas.configure(scrollregion=self.canvas.bbox("all"))
-        except:
-            pass
-
-    def mouse_scroll(self, event):
-        try:
-            x, y = self.winfo_pointerxy()
-            if "scrollframe" in str(self.winfo_containing(x,y)):
-                if event.delta:
-                    self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-                else:
-                    if event.num == 5:
-                        move = 1
-                    else:
-                        move = -1
-                    self.canvas.yview_scroll(move, "units")
-        except:
-            pass
-
     def highlightText(self):
         '''Use the current mark which tracks the mouse position'''
         pass
 
-    def browseDir(self):
-        directory = filedialog.askdirectory()
+    def browseFiles(self):
+        filename = filedialog.askopenfilename(initialdir=ROOT)
 
-        while directory and not os.path.isdir(directory):
-            msg.showerror("Error", "This is not a directory")
-            directory = filedialog.askopenfilename()
-
-        if directory:
+        if filename:
             self.filepath_entry.delete(0, 'end')
-            self.filepath_entry.insert(0, directory)
-
-        self.loadFile()
-
-
+            self.filepath_entry.insert(0, filename)
 
 if __name__ == "__main__":
     moulinette = Moulinette()

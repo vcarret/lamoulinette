@@ -5,14 +5,38 @@ from pdf2image import convert_from_path
 from os import path, mkdir
 import pickle
 import io
+import platform
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from apiclient.http import MediaFileUpload, MediaIoBaseDownload
 
+import six
+from google.cloud import translate_v2 as translate
+
+
+if platform.system() == "Windows":
+    PATH_SEP = "\\"
+else:
+    PATH_SEP = "/"
+
+ROOT = '/home/carter/Documents/Moulinette/'
+PROJECT = ''
+
+lang_map = {
+	'': '',
+	'Dutch': 'nl',
+	'German': 'de',
+	'Italian': 'it'
+}
+
+
 def extractOCR(file, root, project, doOCR):
 	pdf = pdfplumber.open(file)# Returns a PDF object
-	
+
+	if project == "":
+		project = file.split(".")[0]
+		
 	proj_path = root + project
 	if not path.exists(proj_path):
 		mkdir(proj_path)
@@ -26,11 +50,11 @@ def extractOCR(file, root, project, doOCR):
 			file_up = upload_doc(service,page)
 			download_doc(service,file_up,destination)
 	else:# Just try to extract the text
+		txt_file = open(destination, "w") 
 		for n, page in enumerate(pdf.pages):
-			txt_file = open(destination, "w") 
 			text = page.extract_text()
 			txt_file.write(text)
-			txt_file.close()
+		txt_file.close()
 
 
 # If modifying these scopes, delete the file token.pickle.
@@ -100,15 +124,38 @@ def download_doc(service,file_up,destination):
 
 	service.files().delete(fileId=file_up['id']).execute()
 
-# class Footnote(Phrase):
-# 	def __init__(self):
-# 		self.pos = None
 
-# class Phrase():
-# 	def __init__(self,phrase):
-# 		self.phrase = phrase
-# 		self.trad = ""
-# 		self.prev = None
-# 		self.next = None
-# 		self.page = None
-# 		self.footnote = []
+class Phrase():
+	def __init__(self,phrase,prev=None,foll=None,page=None):
+		self.phrase = phrase
+		self.translation = ""
+		self.prev = prev
+		self.foll = foll
+		self.page = page
+		self.footnote = []
+		self.changed = True
+
+class Footnote(Phrase):
+	def __init__(self):
+		self.pos = None
+
+
+
+def translate_text(text,source="",target="en"):
+    """Translates text into the target language.
+
+    Target must be an ISO 639-1 language code.
+    See https://g.co/cloud/translate/v2/translate-reference#supported_languages
+    """
+    translate_client = translate.Client()# Or use direct credentials in translation_api.json
+    # from google.oauth2 import service_account
+	# credentials = service_account.Credentials.from_service_account_file('/home/carter/Desktop/Cours/Thèse/Programming_economics/translation_project/translation_api.json')
+
+    if isinstance(text, six.binary_type):
+        text = text.decode("utf-8")
+
+    # Text can also be a sequence of strings, in which case this method
+    # will return a sequence of results for each text.
+    result = translate_client.translate(text,source_language=source,target_language=target)
+
+    return result["translatedText"]

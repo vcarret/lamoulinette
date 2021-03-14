@@ -89,10 +89,15 @@ if __name__ == '__main__':
     main()
 
 
-class phrase():
+class Footnote(Phrase):
+	def __init__(self):
+		self.pos = None
+
+class Phrase():
 	def __init__(self,phrase):
 		self.phrase = phrase
 		self.trad = ""
 		self.prev = None
 		self.next = None
 		self.page = None
+		self.footnote = []
