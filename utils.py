@@ -10,15 +10,19 @@ from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from apiclient.http import MediaFileUpload, MediaIoBaseDownload
+import os
+from PIL import ImageTk, Image
+import requests
+from pyzotero import zotero
 
 import six
 from google.cloud import translate_v2 as translate
 
 
 if platform.system() == "Windows":
-    PATH_SEP = "\\"
+	PATH_SEP = "\\"
 else:
-    PATH_SEP = "/"
+	PATH_SEP = "/"
 
 ROOT = '/home/carter/Documents/Moulinette/'
 
@@ -62,29 +66,29 @@ def extractOCR(file, root, project, doOCR, firstpage=1):
 SCOPES = ['https://www.googleapis.com/auth/drive.file']
 
 def auth_drive():
-    """Authenticate in the Drive and returns a usable service object
-    """
-    creds = None
-    # The file token.pickle stores the user's access and refresh tokens, and is
-    # created automatically when the authorization flow completes for the first
-    # time.
-    if path.exists('token.pickle'):
-        with open('token.pickle', 'rb') as token:
-            creds = pickle.load(token)
-    # If there are no (valid) credentials available, let the user log in.
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                'credentials.json', SCOPES)
-            creds = flow.run_local_server(port=0)
-        # Save the credentials for the next run
-        with open('token.pickle', 'wb') as token:
-            pickle.dump(creds, token)
+	"""Authenticate in the Drive and returns a usable service object
+	"""
+	creds = None
+	# The file token.pickle stores the user's access and refresh tokens, and is
+	# created automatically when the authorization flow completes for the first
+	# time.
+	if path.exists('token.pickle'):
+		with open('token.pickle', 'rb') as token:
+			creds = pickle.load(token)
+	# If there are no (valid) credentials available, let the user log in.
+	if not creds or not creds.valid:
+		if creds and creds.expired and creds.refresh_token:
+			creds.refresh(Request())
+		else:
+			flow = InstalledAppFlow.from_client_secrets_file(
+				'credentials.json', SCOPES)
+			creds = flow.run_local_server(port=0)
+		# Save the credentials for the next run
+		with open('token.pickle', 'wb') as token:
+			pickle.dump(creds, token)
 
-    service = build('drive', 'v3', credentials=creds)
-    return service
+	service = build('drive', 'v3', credentials=creds)
+	return service
 
 def split_pdf(file,project,firstpage=1):
 	out = ROOT + project + PATH_SEP + "orig_images"
@@ -92,22 +96,36 @@ def split_pdf(file,project,firstpage=1):
 		mkdir(out)
 	
 	pages = convert_from_path(file, dpi=300,output_file="",output_folder=out,first_page=firstpage,fmt='jpeg',paths_only=True)
+
+	images = [Image.open(out + PATH_SEP + x) for x in sorted(os.listdir(out)) if x != "original.jpg"]
+	widths, heights = zip(*(i.size for i in images))
+	total_height = sum(heights)
+	max_widths = max(widths)
+	
+	new_im = Image.new('RGB', (max_widths, total_height))
+	y_offset = 0
+	for im in images:
+		new_im.paste(im, (0,y_offset))
+		y_offset += im.size[1]
+
+	new_im.save(out+PATH_SEP+'original.jpg')
+
 	return pages
 
 def upload_doc(service,file):
 	name = file.split("/")[1]
 	file_metadata = {
-	    'name': name,
-	    'mimeType': 'application/vnd.google-apps.file',
-	    'parents': ['1my_JqnNBNak5-aIlt5TZ92IHOazWUU2G']
+		'name': name,
+		'mimeType': 'application/vnd.google-apps.file',
+		'parents': ['1my_JqnNBNak5-aIlt5TZ92IHOazWUU2G']
 	}
 	media = MediaFileUpload(file,
-	                        mimetype='image/jpeg',
-	                        resumable=True)
+							mimetype='image/jpeg',
+							resumable=True)
 
 	file_up = service.files().create(body=file_metadata,
 								  media_body=media,
-	                              fields='id').execute()
+								  fields='id').execute()
 	return(file_up)
 
 def download_doc(service,file_up,destination):	
@@ -120,8 +138,8 @@ def download_doc(service,file_up,destination):
 	downloader = MediaIoBaseDownload(fh, request)
 	done = False
 	while done is False:
-	    status, done = downloader.next_chunk()
-	    print("Download %d%%." % int(status.progress() * 100))
+		status, done = downloader.next_chunk()
+		print("Download %d%%." % int(status.progress() * 100))
 
 	service.files().delete(fileId=file_up['id']).execute()
 
@@ -145,28 +163,142 @@ class Footnote(Phrase):
 
 
 def translate_text(text,source="",target="en"):
-    """Translates text into the target language.
+	"""Translates text into the target language.
 
-    Target must be an ISO 639-1 language code.
-    See https://g.co/cloud/translate/v2/translate-reference#supported_languages
-    """
-    if text == "":
-    	return ""
+	Target must be an ISO 639-1 language code.
+	See https://g.co/cloud/translate/v2/translate-reference#supported_languages
+	"""
+	if text == "":
+		return ""
 
-    clean_text = text.replace("\n"," ")
+	clean_text = text.replace("\n"," ")
 
-    translate_client = translate.Client()# Or use direct credentials in translation_api.json
-    # from google.oauth2 import service_account
+	translate_client = translate.Client()# Or use direct credentials in translation_api.json
+	# from google.oauth2 import service_account
 	# credentials = service_account.Credentials.from_service_account_file('/home/carter/Desktop/Cours/Thèse/Programming_economics/translation_project/translation_api.json')
 
-    if isinstance(clean_text, six.binary_type):
-        clean_text = clean_text.decode("utf-8")
+	if isinstance(clean_text, six.binary_type):
+		clean_text = clean_text.decode("utf-8")
 
-    # Text can also be a sequence of strings, in which case this method
-    # will return a sequence of results for each text.
-    result = translate_client.translate(clean_text,source_language=source,target_language=target)
+	# Text can also be a sequence of strings, in which case this method
+	# will return a sequence of results for each text.
+	result = translate_client.translate(clean_text,source_language=source,target_language=target)
 
-    return result["translatedText"]
+	return result["translatedText"]
 
 def check_num(newval):
-    return re.match('^[0-9]*$', newval) is not None and len(newval) <= 5
+	return re.match('^[0-9]*$', newval) is not None and len(newval) <= 5
+
+
+class ZotItem():
+    all_template = {}
+    def __init__(self, itemType):
+        self.template = self.getTemplate(itemType)
+        self.attachment = ''
+
+    def getTemplate(self, itemType):
+        if itemType not in self.all_template:
+            url = "https://api.zotero.org/items/new?itemType={i}".format(i=itemType)
+            default_headers = {
+                "User-Agent": "Moulinette",
+                "Zotero-API-Version": "3"
+            }
+            request = requests.get(url=url, headers=default_headers)
+            request.encoding = "utf-8"
+            self.all_template[itemType] = request.json()
+        return self.all_template[itemType].copy()
+
+    def update(self, field, value):
+        if field != "creators" and field != "author" and field != "attachment" and field != "collections" and field in self.template:
+            self.template[field] = value.strip()
+        elif field == "collections":
+            self.template[field] = [value.strip()]
+        elif field == "creators" or field == "author":
+            self.template["creators"][0]["lastName"] = value.strip().split(" ")[-1]
+            try:
+                self.template["creators"][0]["firstName"] = " ".join(value.strip().split(" ")[:-1])
+            except IndexError:
+                pass
+        elif field == "attachment":
+            self.attachment = value.strip()
+
+    def access(self, key):
+        if key in self.template:
+            if key == "creators":
+                try:
+                    return(self.template[key][0]['firstName'] + " " + self.template[key][0]['lastName'])
+                except (IndexError):
+                    return('')
+            elif key == "collections":
+                return(self.template[key][0])
+            else:
+                return(self.template[key])
+        else:
+            return('')
+
+
+item_types = [
+    "document",
+    "book",
+    "bookSection",
+    "journalArticle",
+    "magazineArticle",
+    "newspaperArticle",
+    "letter",
+    "note",
+    "thesis",
+    "manuscript",
+    "interview",
+    "film",
+    "artwork",
+    "webpage",
+    "attachment",
+    "report",
+    "bill",
+    "case",
+    "hearing",
+    "patent",
+    "statute",
+    "email",
+    "map",
+    "blogPost",
+    "instantMessage",
+    "forumPost",
+    "audioRecording",
+    "presentation",
+    "videoRecording",
+    "tvBroadcast",
+    "radioBroadcast",
+    "podcast",
+    "computerProgram",
+    "conferencePaper",
+    "encyclopediaArticle",
+    "dictionaryEntry"
+]
+
+item_fields = [
+    "itemType",
+    "title",
+    "abstractNote",
+    "series",
+    "seriesNumber",
+    "volume",
+    "numberOfVolumes",
+    "edition",
+    "place",
+    "publisher",
+    "date",
+    "numPages",
+    "language",
+    "url",
+    "archive",
+    "archiveLocation",
+    "libraryCatalog",
+    "extra",
+    "creators",
+    "attachment",
+    "tag",
+    "note",
+    "bookSection",
+    "issue"
+]
