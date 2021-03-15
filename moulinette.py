@@ -63,7 +63,7 @@ class Moulinette(tk.Tk):
         ttk.Label(self.load_settings, text='File: ').grid(column=0,row=0)
         self.filepath_entry = ttk.Entry(self.load_settings, font=self.default_font)
         self.filepath_entry.grid(column=1,row=0, pady=(2,2), sticky="nsew")
-        self.filepath_entry.insert(0,"/home/carter/Documents/Moulinette/Tinbergen - 1930 - De werkloosheid/project.moul")#/home/carter/Desktop/Cours/Thèse/Programming_economics/translation_project/Tinbergen - 1930 - De werkloosheid.pdf
+        self.filepath_entry.insert(0,"/home/carter/Desktop/Cours/Thèse/Programming_economics/translation_project/Tinbergen - 1930 - De werkloosheid.pdf")#/home/carter/Documents/Moulinette/Tinbergen - 1930 - De werkloosheid/project.moul
         self.browse_button = ttk.Button(self.load_settings, text="Browse", command=self.browseFiles)
         self.browse_button.grid(column=2,row=0, pady=(2,2), sticky="nsew", padx=(5,5))
 
@@ -152,6 +152,8 @@ class Moulinette(tk.Tk):
         with open("zotero_key.json","r") as f:
             self.zotero_api = json.load(f)
 
+        self.apiInstance = ApiCall(self.zotero_api["api_key"],self.zotero_api["lib_type"],self.zotero_api["lib_id"])
+
         self.zotero_settings = tk.Frame(self.notebook_leftpanel)
         self.zotero_settings.pack(fill=tk.BOTH, padx=2,pady=2,ipadx=2,ipady=2,expand=True)
 
@@ -222,10 +224,9 @@ class Moulinette(tk.Tk):
 
         # Bindings
         self.bind("<Control-s>", self.saveFile)
-        self.bind("<Control-Shift-S>", self.saveFileAndTranslate)
+        self.bind("<Control-Shift-S>", self.saveFile)
         self.bind("<Control-i>", self.insertMark)
-        self.unbind("<Control-f>")
-        self.bind("<Control-Alt-f>", self.setFocusFinder)
+        # self.unbind("<Control-f>")
         self.editor_left.bind("<Control-f>", self.setFocusFinder)
         self.bind("<Control-h>", self.setFocusReplace)
         self.editor_left.bind("<Control-a>", self.selectAll)
@@ -263,45 +264,29 @@ class Moulinette(tk.Tk):
 
         with open(ROOT + self.project + PATH_SEP + "original.txt", "w") as f:
             f.write(original_text.replace("•",""))
-        with open(ROOT + self.project + PATH_SEP + "translation.txt", "w") as f:
-            f.write(translated_text.replace("•",""))
 
         self.rebuildPhrases()
         self.checkChanges()
+        if event.state == 21:# code for ctrl+shift+S
+            #self.translateText()
+            pass
+
+        with open(ROOT + self.project + PATH_SEP + "translation.txt", "w") as f:
+            f.write(translated_text.replace("•",""))
+
         # [print(x) for x in self.editor_left.dump('1.0', tk.END, **{"mark":True,'text':True})]
-        for k in self.zotItem.template.keys():
-            if k != "itemType":
-                self.zotItem.template[k] = self.values_zotero[k].get()
-            else:
-                self.zotItem.template[k] = self.itemType.get()
-
-        with open(ROOT + self.project + PATH_SEP + 'project.moul', 'wb') as dict_phrases:
-            pickle.dump((self.zotItem,self.project,self.text), dict_phrases)
-
-    def saveFileAndTranslate(self,event):
-        '''Basically the same as saveFile but also translates the phrases that have changed
-        TODO: merge and call based on event'''
-        original_text = self.editor_left.get('1.0', tk.END)
-        translated_text = self.editor_right.get('1.0', tk.END)
-
-        with open(ROOT + self.project + PATH_SEP + "original.txt", "w") as f:
-            f.write(original_text.replace("•",""))
-
-        self.rebuildPhrases()
-        self.checkChanges()
-        # self.translateText()
+        for k,v in self.values_zotero.items():
+            self.zotItem.update(k,v.get())
         
-        with open(ROOT + self.project + PATH_SEP + "translation.txt", "w") as f:
-            f.write(translated_text.replace("•",""))
-
-        for k in self.zotItem.template.keys():
-            if k != "itemType":
-                self.zotItem.template[k] = self.values_zotero[k].get()
-            else:
-                self.zotItem.template[k] = self.itemType.get()
+        self.zotItem.template["itemType"] = self.itemType.get()
 
         with open(ROOT + self.project + PATH_SEP + 'project.moul', 'wb') as dict_phrases:
             pickle.dump((self.zotItem,self.project,self.text), dict_phrases)
+
+        # self.zotItem.template["version"] += 1
+        resp = self.apiInstance.updateItem(self.zotItem)
+        if not resp:
+            print("something went wrong with Zotero update")
 
     def rebuildPhrases(self):
         '''Called during the saving operation. Cleanup the marks that have been "deleted" and updates the dictionary to reflect those changes'''
@@ -369,6 +354,13 @@ class Moulinette(tk.Tk):
             self.project = extractOCR(file,ROOT,self.project,self.doOCR.get(),int(self.firstpage.get()))
             self.buildPhrasesFromOriginal()
             self.zotItem = ZotItem(self.itemType.get())
+            self.zotItem.template["collections"] = [self.zotero_api["destinations"]["Translations"]]
+            resp = self.apiInstance.createItem(self.zotItem)
+            if resp:
+                self.zotItem.template["key"] = resp[0]
+                self.zotItem.template["version"] = int(resp[1])
+            else:
+                print("something went wrong with Zotero")
         elif file_ext.lower() == "moul":
             with open(file, 'rb') as dict_phrases:
                 self.zotItem,self.project,self.text = pickle.load(dict_phrases)
@@ -390,10 +382,9 @@ class Moulinette(tk.Tk):
         self.values_zotero = {}
         if self.zotItem.template["itemType"] != self.itemType.get():
             self.itemType.set(self.zotItem.template["itemType"])
-            
 
         for i,(field,value) in enumerate(self.zotItem.template.items()):
-            if field != "itemType":
+            if field != "itemType" and field != "relations" and field != "collections" and field != "tags" and field != "key" and field != "version":
                 ttk.Label(self.zotero_settings, text=field+': ').grid(column=0,row=i+2,padx=(2,2), pady=(2,2))
                 self.values_zotero[field] = tk.StringVar()
                 if value != "":
@@ -403,14 +394,20 @@ class Moulinette(tk.Tk):
     def itemTypeUpdated(self,event=None):
         new_template = self.zotItem.getTemplate(self.itemType.get())
         for i,(field,value) in enumerate(new_template.items()):
-            if field != "itemType":
+            if field != "itemType" and field != "key" and field != "version":
                 if field in self.zotItem.template:
                     new_template[field] = self.values_zotero[field].get()
+
+        if "key" in self.zotItem.template:
+            new_template["key"] = self.zotItem.template["key"]
+        if "version" in self.zotItem.template:
+            new_template["version"] = self.zotItem.template["version"]
 
         self.zotItem.template = new_template
         for i,(k,v) in enumerate(self.zotero_settings.children.items()):
             if i >= 4:
                 v.grid_forget()
+
         self.loadZotero()
 
     def loadViewer(self):

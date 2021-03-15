@@ -191,114 +191,136 @@ def check_num(newval):
 
 
 class ZotItem():
-    all_template = {}
-    def __init__(self, itemType):
-        self.template = self.getTemplate(itemType)
-        self.attachment = ''
+	all_template = {}
+	def __init__(self, itemType):
+		self.template = self.getTemplate(itemType)
+		self.attachment = ''
 
-    def getTemplate(self, itemType):
-        if itemType not in self.all_template:
-            url = "https://api.zotero.org/items/new?itemType={i}".format(i=itemType)
-            default_headers = {
-                "User-Agent": "Moulinette",
-                "Zotero-API-Version": "3"
-            }
-            request = requests.get(url=url, headers=default_headers)
-            request.encoding = "utf-8"
-            self.all_template[itemType] = request.json()
-        return self.all_template[itemType].copy()
+	def getTemplate(self, itemType):
+		if itemType not in self.all_template:
+			url = "https://api.zotero.org/items/new?itemType={i}".format(i=itemType)
+			default_headers = {
+				"User-Agent": "Moulinette",
+				"Zotero-API-Version": "3"
+			}
+			request = requests.get(url=url, headers=default_headers)
+			request.encoding = "utf-8"
+			self.all_template[itemType] = request.json()
+		return self.all_template[itemType].copy()
 
-    def update(self, field, value):
-        if field != "creators" and field != "author" and field != "attachment" and field != "collections" and field in self.template:
-            self.template[field] = value.strip()
-        elif field == "collections":
-            self.template[field] = [value.strip()]
-        elif field == "creators" or field == "author":
-            self.template["creators"][0]["lastName"] = value.strip().split(" ")[-1]
-            try:
-                self.template["creators"][0]["firstName"] = " ".join(value.strip().split(" ")[:-1])
-            except IndexError:
-                pass
-        elif field == "attachment":
-            self.attachment = value.strip()
+	def update(self, field, value):
+		if field != "creators" and field != "author" and field != "attachment" and field != "collections" and field != "tags" and field in self.template:
+			self.template[field] = value.strip()
+		elif field == "tags":
+			self.template[field] = value.strip().split(",")
+		elif field == "collections":
+			self.template[field] = [value[0].strip()]
+		elif field == "creators" or field == "author":
+			self.template["creators"][0]["lastName"] = value.strip().split(" ")[-1]
+			try:
+				self.template["creators"][0]["firstName"] = " ".join(value.strip().split(" ")[:-1])
+			except IndexError:
+				pass
+		elif field == "attachment":
+			self.attachment = value.strip()
 
-    def access(self, key):
-        if key in self.template:
-            if key == "creators":
-                try:
-                    return(self.template[key][0]['firstName'] + " " + self.template[key][0]['lastName'])
-                except (IndexError):
-                    return('')
-            elif key == "collections":
-                return(self.template[key][0])
-            else:
-                return(self.template[key])
-        else:
-            return('')
+	def access(self, key):
+		if key in self.template:
+			if key == "creators":
+				try:
+					return(self.template[key][0]['firstName'] + " " + self.template[key][0]['lastName'])
+				except (IndexError):
+					return('')
+			elif key == "collections":
+				return(self.template[key][0])
+			else:
+				return(self.template[key])
+		else:
+			return('')
+
+class ApiCall():
+	def __init__(self, api_key = None, lib_type = None, lib_id = None):
+		self.api_instance = zotero.Zotero(int(lib_id), lib_type, api_key)
+
+	def createItem(self, item):
+		resp = self.api_instance.create_items([item.template])
+		if resp['successful'] != {}:
+			return (resp['successful']['0']['key'],resp['successful']['0']['version'],)# The id of the item created
+		else:
+			return False
+
+	def updateItem(self,item):
+		resp = self.api_instance.update_item(item.template)
+		return resp
+
+	def uploadFile(self,item,attachment):
+		up = self.api_instance.attachment_simple([item.attachment], item.template["key"])
+		if up['failure'] != []:
+			print("Failure to upload file")
 
 
 item_types = [
-    "document",
-    "book",
-    "bookSection",
-    "journalArticle",
-    "magazineArticle",
-    "newspaperArticle",
-    "letter",
-    "note",
-    "thesis",
-    "manuscript",
-    "interview",
-    "film",
-    "artwork",
-    "webpage",
-    "attachment",
-    "report",
-    "bill",
-    "case",
-    "hearing",
-    "patent",
-    "statute",
-    "email",
-    "map",
-    "blogPost",
-    "instantMessage",
-    "forumPost",
-    "audioRecording",
-    "presentation",
-    "videoRecording",
-    "tvBroadcast",
-    "radioBroadcast",
-    "podcast",
-    "computerProgram",
-    "conferencePaper",
-    "encyclopediaArticle",
-    "dictionaryEntry"
+	"document",
+	"book",
+	"bookSection",
+	"journalArticle",
+	"magazineArticle",
+	"newspaperArticle",
+	"letter",
+	"note",
+	"thesis",
+	"manuscript",
+	"interview",
+	"film",
+	"artwork",
+	"webpage",
+	"attachment",
+	"report",
+	"bill",
+	"case",
+	"hearing",
+	"patent",
+	"statute",
+	"email",
+	"map",
+	"blogPost",
+	"instantMessage",
+	"forumPost",
+	"audioRecording",
+	"presentation",
+	"videoRecording",
+	"tvBroadcast",
+	"radioBroadcast",
+	"podcast",
+	"computerProgram",
+	"conferencePaper",
+	"encyclopediaArticle",
+	"dictionaryEntry"
 ]
 
 item_fields = [
-    "itemType",
-    "title",
-    "abstractNote",
-    "series",
-    "seriesNumber",
-    "volume",
-    "numberOfVolumes",
-    "edition",
-    "place",
-    "publisher",
-    "date",
-    "numPages",
-    "language",
-    "url",
-    "archive",
-    "archiveLocation",
-    "libraryCatalog",
-    "extra",
-    "creators",
-    "attachment",
-    "tag",
-    "note",
-    "bookSection",
-    "issue"
+	"itemType",
+	"title",
+	"abstractNote",
+	"series",
+	"seriesNumber",
+	"volume",
+	"numberOfVolumes",
+	"edition",
+	"place",
+	"publisher",
+	"date",
+	"numPages",
+	"language",
+	"url",
+	"archive",
+	"archiveLocation",
+	"libraryCatalog",
+	"extra",
+	"creators",
+	"attachment",
+	"tag",
+	"note",
+	"bookSection",
+	"issue"
 ]
