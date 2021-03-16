@@ -14,10 +14,20 @@ import os
 from PIL import ImageTk, Image
 import requests
 from pyzotero import zotero
-
+import html
 import six
 from google.cloud import translate_v2 as translate
-
+import requests
+import re
+import tkinter as tk
+from tkinter import ttk
+from tkinter import messagebox as msg
+from tkinter import filedialog
+from tkinter import simpledialog
+from tkinter import Scrollbar
+import tkinter.font as tkFont
+import subprocess
+import json
 
 if platform.system() == "Windows":
 	PATH_SEP = "\\"
@@ -161,7 +171,6 @@ class Footnote(Phrase):
 		self.pos = None
 
 
-
 def translate_text(text,source="",target="en"):
 	"""Translates text into the target language.
 
@@ -184,11 +193,10 @@ def translate_text(text,source="",target="en"):
 	# will return a sequence of results for each text.
 	result = translate_client.translate(clean_text,source_language=source,target_language=target)
 
-	return result["translatedText"]
+	return html.unescape(result["translatedText"])
 
 def check_num(newval):
 	return re.match('^[0-9]*$', newval) is not None and len(newval) <= 5
-
 
 class ZotItem():
 	all_template = {}
@@ -216,11 +224,14 @@ class ZotItem():
 		elif field == "collections":
 			self.template[field] = [value[0].strip()]
 		elif field == "creators" or field == "author":
-			self.template["creators"][0]["lastName"] = value.strip().split(" ")[-1]
-			try:
-				self.template["creators"][0]["firstName"] = " ".join(value.strip().split(" ")[:-1])
-			except IndexError:
-				pass
+			self.template["creators"] = value
+		# 	author = value.strip().split(" ")[-1]
+		# 	self.template["creators"]
+		# 	self.template["creators"][0]["lastName"] = 
+		# 	try:
+		# 		self.template["creators"][0]["firstName"] = " ".join(value.strip().split(" ")[:-1])
+		# 	except IndexError:
+		# 		pass
 		elif field == "attachment":
 			self.attachment = value.strip()
 
@@ -257,6 +268,75 @@ class ApiCall():
 		up = self.api_instance.attachment_simple([item.attachment], item.template["key"])
 		if up['failure'] != []:
 			print("Failure to upload file")
+
+
+class ZoteroDialog(tk.Toplevel):
+	def __init__(self, parent,collection):
+		tk.Toplevel.__init__(self, parent)
+		self.geometry("%dx%d" % (1000, 1000))
+
+		self.canvas = tk.Canvas(self)
+
+		self.canvas = tk.Canvas(self, borderwidth=0)
+		self.frame = tk.Frame(self.canvas)
+		self.vsb = tk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
+		self.canvas.configure(yscrollcommand=self.vsb.set)
+
+		self.vsb.pack(side="right", fill="y")
+		self.canvas.pack(side="right", fill="both", expand=True)
+		self.canvas.create_window((4,4), window=self.frame, anchor="nw",tags="self.frame")
+
+		self.frame.bind("<Configure>", self.onFrameConfigure)
+		self.frame.bind("<MouseWheel>", self.mouse_scroll)
+		self.frame.bind_all("<Button-4>", self.mouse_scroll)
+		self.frame.bind_all("<Button-5>", self.mouse_scroll)
+
+		self.var = tk.StringVar()
+		self.populate(collection)
+
+	def populate(self, collection):
+		i = 0
+		for item in collection:
+			data = format(i) + ": "
+			if "meta" in item:
+				if "creatorSummary" in item["meta"]:
+					data += item["meta"]["creatorSummary"] 
+				else:
+					continue
+				if "parsedDate" in item["meta"]:
+					data += " - " + item["meta"]["parsedDate"]
+			if "data" in item:
+				if "title" in item["data"]:
+					data += " - " + item["data"]["title"]
+			label = ttk.Label(self.frame,text=data)
+			label.grid(column=1, row=i, sticky='nsew')
+			label.bind("<Button-1>",lambda e,data=item['key']:self.return_key(data))
+			i += 1
+
+	def return_key(self, event=None):
+		self.var.set(event)
+		self.destroy()
+
+	def show(self):
+		self.wm_deiconify()
+		self.wait_window()
+		return self.var.get()
+
+	def onFrameConfigure(self,event=None):
+		'''Reset the scroll region to encompass the inner frame'''
+		self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+
+	def mouse_scroll(self, event):
+		x, y = self.winfo_pointerxy()
+		if "canvas" in str(self.winfo_containing(x,y)):
+			if event.delta:
+				self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+			else:
+				if event.num == 5:
+					move = 1
+				else:
+					move = -1
+				self.canvas.yview_scroll(move, "units")
 
 
 item_types = [
