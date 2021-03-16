@@ -107,18 +107,18 @@ def split_pdf(file,project,firstpage=1):
 	
 	pages = convert_from_path(file, dpi=300,output_file="",output_folder=out,first_page=firstpage,fmt='jpeg',paths_only=True)
 
-	images = [Image.open(out + PATH_SEP + x) for x in sorted(os.listdir(out)) if x != "original.jpg"]
-	widths, heights = zip(*(i.size for i in images))
-	total_height = sum(heights)
-	max_widths = max(widths)
+	# images = [Image.open(out + PATH_SEP + x) for x in sorted(os.listdir(out)) if x != "original.jpg"]
+	# widths, heights = zip(*(i.size for i in images))
+	# total_height = sum(heights)
+	# max_widths = max(widths)
 	
-	new_im = Image.new('RGB', (max_widths, total_height))
-	y_offset = 0
-	for im in images:
-		new_im.paste(im, (0,y_offset))
-		y_offset += im.size[1]
+	# new_im = Image.new('RGB', (max_widths, total_height))
+	# y_offset = 0
+	# for im in images:
+	# 	new_im.paste(im, (0,y_offset))
+	# 	y_offset += im.size[1]
 
-	new_im.save(out+PATH_SEP+'original.jpg')
+	# new_im.save(out+PATH_SEP+'original.jpg')
 
 	return pages
 
@@ -153,6 +153,53 @@ def download_doc(service,file_up,destination):
 
 	service.files().delete(fileId=file_up['id']).execute()
 
+class ScrollableImage(tk.Frame):
+    '''Scrollable image'''
+    def __init__(self, master=None, **kw):
+        self.image = kw.pop('image', None)
+        sw = kw.pop('scrollbarwidth', 10)
+        super(ScrollableImage, self).__init__(master=master, **kw)
+        self.cnvs = tk.Canvas(self, highlightthickness=0, **kw)
+        self.cnvs.create_image(0, 0, anchor='nw', image=self.image)
+        # Vertical and Horizontal scrollbars
+        self.v_scroll = tk.Scrollbar(self, orient='vertical', width=sw)
+        self.h_scroll = tk.Scrollbar(self, orient='horizontal', width=sw)
+        # Grid and configure weight.
+        self.cnvs.grid(row=0, column=0,  sticky='nsew')
+        self.h_scroll.grid(row=1, column=0, sticky='ew')
+        self.v_scroll.grid(row=0, column=1, sticky='ns')
+        self.rowconfigure(0, weight=1)
+        self.columnconfigure(0, weight=1)
+        # Set the scrollbars to the canvas
+        self.cnvs.config(xscrollcommand=self.h_scroll.set, 
+                           yscrollcommand=self.v_scroll.set)
+        # Set canvas view to the scrollbars
+        self.v_scroll.config(command=self.cnvs.yview)
+        self.h_scroll.config(command=self.cnvs.xview)
+        # Assign the region to be scrolled 
+        self.cnvs.config(scrollregion=self.cnvs.bbox('all'))
+        self.cnvs.bind_class(self.cnvs, "<MouseWheel>", self.mouse_scroll)
+        self.cnvs.bind_class(self.cnvs, "<Button-4>", self.mouse_scroll)
+        self.cnvs.bind_class(self.cnvs, "<Button-5>", self.mouse_scroll)
+
+        self.cnvs.bind("<Button-1>", self.printEv)
+        self.cnvs.bind("<ButtonRelease-1>", self.printEv)
+
+    def printEv(self,event):
+    	print(event)
+
+    def mouse_scroll(self, evt):
+        x, y = self.winfo_pointerxy()
+        # print(str(self.winfo_containing(x,y)))
+        if "scrollableimage" in str(self.winfo_containing(x,y)):
+            if evt.delta:
+                self.cnvs.yview_scroll(int(-1*(evt.delta/120)), "units")
+            else:
+                if evt.num == 5:
+                    move = 1
+                else:
+                    move = -1
+                self.cnvs.yview_scroll(move, "units")
 
 class Phrase():
 	def __init__(self,phrase,index=None,prev=None,foll=None,page=None):
@@ -328,6 +375,7 @@ class ZoteroDialog(tk.Toplevel):
 
 	def mouse_scroll(self, event):
 		x, y = self.winfo_pointerxy()
+		print(self.winfo_pointerxy())
 		if "canvas" in str(self.winfo_containing(x,y)):
 			if event.delta:
 				self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")

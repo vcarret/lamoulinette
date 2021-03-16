@@ -54,7 +54,7 @@ class Moulinette(tk.Tk):
 		self.filepath_entry = ttk.Entry(self.load_settings, font=self.default_font)
 		self.filepath_entry.grid(column=1,row=0, pady=(2,2), sticky="nsew")
 		# self.filepath_entry.insert(0,"/home/carter/Desktop/Cours/Thèse/Programming_economics/translation_project/Tinbergen - 1930 - De werkloosheid.pdf")#
-		self.filepath_entry.insert(0,"/home/carter/Documents/Moulinette/Tinbergen - 1928 - Opmerkingen over ruiltheorie/project.moul")
+		self.filepath_entry.insert(0,"/home/carter/Documents/Moulinette/Tinbergen - 1930 - De werkloosheid/project.moul")
 		self.browse_button = ttk.Button(self.load_settings, text="Browse", command=self.browseFiles)
 		self.browse_button.grid(column=2,row=0, pady=(2,2), sticky="nsew", padx=(5,5))
 
@@ -91,25 +91,25 @@ class Moulinette(tk.Tk):
 		# self.edit_settings.pack(fill=tk.BOTH,expand=True)
 
 		self.insert_button = ttk.Button(self.edit_settings, text="I",width=2, command=self.insertMark)
-		self.insert_button.grid(column=0,row=0,columnspan=1, pady=(2,2), sticky="nsew", padx=(2,2))
+		# self.insert_button.grid(column=0,row=0,columnspan=1, pady=(2,2), sticky="nsew", padx=(2,2))
 
 		self.dontTranslate_button = ttk.Button(self.edit_settings, text="Ⱦ",width=2, command=self.dontTranslate)
-		self.dontTranslate_button.grid(column=1,row=0,columnspan=1, pady=(2,2), sticky="nsew", padx=(2,2))
+		self.dontTranslate_button.grid(column=0,row=0,columnspan=1, pady=(2,2), sticky="nsew", padx=(2,2))
 
 		self.footnote_button = ttk.Button(self.edit_settings, text="F",width=2, command=self.insertFn)
-		self.footnote_button.grid(column=2,row=0,columnspan=1, pady=(2,2), sticky="nsew", padx=(2,2))
+		self.footnote_button.grid(column=1,row=0,columnspan=1, pady=(2,2), sticky="nsew", padx=(2,2))
 
 		self.makePhrases_button = ttk.Button(self.edit_settings, text="P",width=2, command=self.buildPhrasesFromEditor)
-		self.makePhrases_button.grid(column=3,row=0,columnspan=1, pady=(2,2), sticky="nsew", padx=(2,2))
+		self.makePhrases_button.grid(column=2,row=0,columnspan=1, pady=(2,2), sticky="nsew", padx=(2,2))
 
 		self.translate_button = ttk.Button(self.edit_settings, text="T",width=2, command=self.translateText)
-		self.translate_button.grid(column=4,row=0,columnspan=1, pady=(2,2), sticky="nsew", padx=(2,2))
+		self.translate_button.grid(column=3,row=0,columnspan=1, pady=(2,2), sticky="nsew", padx=(2,2))
 
 		self.makePDF_button = ttk.Button(self.edit_settings, text="M",width=2, command=self.makePDF)
-		self.makePDF_button.grid(column=5,row=0,columnspan=1, pady=(2,2), sticky="nsew", padx=(2,2))
+		self.makePDF_button.grid(column=4,row=0,columnspan=1, pady=(2,2), sticky="nsew", padx=(2,2))
 
 		self.uploadPDF_button = ttk.Button(self.edit_settings, text="U",width=2, command=self.uploadPDF)
-		self.uploadPDF_button.grid(column=6,row=0,columnspan=1, pady=(2,2), sticky="nsew", padx=(2,2))
+		self.uploadPDF_button.grid(column=5,row=0,columnspan=1, pady=(2,2), sticky="nsew", padx=(2,2))
 
 		self.findBox = ttk.Entry(self.edit_settings, font=self.default_font)
 		self.findBox.grid(column=0,row=1,columnspan=2, pady=(2,2), sticky="nsew", padx=(2,2))
@@ -199,7 +199,7 @@ class Moulinette(tk.Tk):
 		self.right_editor_content = ttk.Frame(self.notebook_rightpanel)
 		self.right_editor_content.pack(fill=tk.BOTH, padx=10,pady=5,ipadx=5,ipady=5,expand=True)
 
-		self.editor_right = tk.Text(wrap="word", background="white",undo=True,autoseparators=True,maxundo=-1,borderwidth=0, highlightthickness=0)
+		self.editor_right = tk.Text(wrap="word", background="white",undo=True,autoseparators=True,maxundo=-1,borderwidth=0, highlightthickness=0,spacing3=10)
 		self.scrollbar_right = Scrollbar(orient="vertical", borderwidth=1,command=self.editor_right.yview)
 
 		self.editor_right.configure(yscrollcommand=self.scrollbar_right.set)
@@ -209,24 +209,6 @@ class Moulinette(tk.Tk):
 		# Right viewer
 		self.right_viewer_content = ttk.Frame(self.notebook_rightpanel)
 		self.right_viewer_content.pack(fill=tk.BOTH, padx=2,pady=2,ipadx=2,ipady=2,expand=True)
-
-		self.viewer_right = tk.Text(wrap="word", background="white",undo=True,autoseparators=True,maxundo=-1,borderwidth=0, highlightthickness=0)
-		self.scrollbar_viewer_right = Scrollbar(orient="vertical", borderwidth=1,command=self.viewer_right.yview)
-
-		self.viewer_right.configure(yscrollcommand=self.scrollbar_viewer_right.set)
-		self.scrollbar_viewer_right.pack(in_=self.right_viewer_content,side=tk.RIGHT,fill=tk.Y,expand=False)
-		self.viewer_right.pack(in_=self.right_viewer_content,side=tk.LEFT,expand=True,fill=tk.BOTH)
-
-		# self.scrollbar_viewer_right = Scrollbar(self.right_viewer_content,orient="vertical", borderwidth=1)
-		# self.viewer_right = tk.Canvas(self.right_viewer_content,background='gray65',yscrollcommand=self.scrollbar_viewer_right.set)#, scrollregion=(0, 0, 1000, 1000))
-		# # self.viewer_right.pack(fill=tk.BOTH, padx=2,pady=2,ipadx=2,ipady=2,expand=True)
-		# self.scrollbar_viewer_right.config(command=self.viewer_right.yview)
-
-		# self.viewer_right.configure()
-		# self.scrollbar_viewer_right.pack(side=tk.RIGHT,fill=tk.Y,expand=False)
-		# self.viewer_right.pack(side=tk.LEFT,expand=True,fill=tk.BOTH)
-		# self.viewer_right.config(scrollregion=self.right_viewer_content.bbox(tk.ALL))
-
 
 		# End notebook settings
 		self.notebook_rightpanel.add(self.right_viewer_content,text="Viewer")
@@ -249,9 +231,17 @@ class Moulinette(tk.Tk):
 		self.bind("<Control-i>", self.insertMark)
 		# self.unbind("<Control-f>")
 		self.bind("<Control-h>", self.setFocusReplace)
+		self.bind("<Control-Left>",self.imageLeft)
+		self.bind("<Control-Right>",self.imageRight)
+
 		self.editor_left.bind("<Control-f>", self.setFocusFinder)
 		self.editor_left.bind("<Control-a>", self.selectAll)
 		self.editor_left.bind("<Return>", self.insertNewl)
+
+		self.bind("<KeyPress>",self.printEv)
+
+	def printEv(self,event):
+		print(event)
 
 	def insertMark(self,event=None):
 		'''Insert a mark at the current position of the cursor. The marks and phrase dictionary are updated to reflect this addition'''
@@ -345,7 +335,7 @@ class Moulinette(tk.Tk):
 			if "attachment" in item["links"]:
 				fileKey = item["links"]["attachment"]["href"].split("/")[-1]
 				with open(file, 'wb') as f:
-		  			f.write(self.apiInstance.api_instance.file(fileKey))
+					f.write(self.apiInstance.api_instance.file(fileKey))
 			else:
 				msg.showerror("Error", "There is no pdf file attached to the item")
 				return
@@ -363,10 +353,11 @@ class Moulinette(tk.Tk):
 
 		self.editor_left.insert("1.0",text)
 
-		with open(ROOT + self.project + PATH_SEP + "translation.txt","r") as f:
-			text = f.read()
+		if os.path.exists(ROOT + self.project + PATH_SEP + "translation.txt"):
+			with open(ROOT + self.project + PATH_SEP + "translation.txt","r") as f:
+				text = f.read()
 
-		self.editor_right.insert("1.0",text)
+			self.editor_right.insert("1.0",text)
 
 	def loadFile(self):
 		'''
@@ -451,26 +442,52 @@ class Moulinette(tk.Tk):
 	def loadViewer(self):
 		'''Loads the "viewer" on the right panel. The image was concatenated just after the pdf split'''
 		self.update()
-		width = self.right_viewer_content.winfo_width()
-		root_path = ROOT + self.project + PATH_SEP + "orig_images" + PATH_SEP
+		self.width = self.right_viewer_content.winfo_width()
+		self.height = self.right_viewer_content.winfo_height()
 
-		self.image_viewer = Image.open(root_path + "original.jpg")
-		height_img,width_img=self.image_viewer.height,self.image_viewer.width
-		scale = width/width_img
-		new_height = scale*height_img
-		self.image_viewer = self.image_viewer.resize((width,(int(new_height))), Image.ANTIALIAS)
-		self.image = ImageTk.PhotoImage(self.image_viewer)
-		self.viewer_right.image_create(tk.END,image=self.image)
-		# self.images = []
-		# for i,path in enumerate(os.listdir(root_path)):
-		#     self.images.append(Image.open(root_path + path).resize((height, width), Image.ANTIALIAS))
+		self.imgs = [Image.open(ROOT + self.project + PATH_SEP + "orig_images" + PATH_SEP + x) for x in sorted(os.listdir(ROOT + self.project + PATH_SEP + "orig_images")) if x != "original.jpg"]
 
-		#     image = ImageTk.PhotoImage(self.images[i])
-		#     print(image.width(),image.height())
-		#     self.viewer_right.create_image((50, height*i+10), image=image,anchor='nw')
-		#     # self.viewer_right.image = image
-				
-		# self.viewer_right.configure(scrollregion = self.viewer_right.bbox("all"))
+		for i,img in enumerate(self.imgs):
+			height_img,width_img=img.height,img.width
+			scale = self.width/width_img
+			new_height = scale*height_img
+			self.imgs[i] = img.resize((self.width,(int(new_height))), Image.ANTIALIAS)
+
+		self.ph_img = ImageTk.PhotoImage(self.imgs[0])
+		self.img_index = 0
+
+		self.viewer_settings = tk.Frame(self.right_viewer_content)
+		self.viewer_settings.pack(side=tk.BOTTOM,expand=True,fill=tk.BOTH)
+
+		self.image_window = ScrollableImage(self.right_viewer_content, image=self.ph_img, scrollbarwidth=6, 
+							   width=self.width-140, height=self.height)
+		self.image_window.pack(side="right", fill="both",expand=True)
+
+		self.buttonRight = ttk.Button(self.viewer_settings, text=">",width=2, command=self.imageRight)
+		self.buttonRight.pack(side="right")
+
+		self.buttonLeft = ttk.Button(self.viewer_settings, text="<",width=2, command=self.imageLeft)
+		self.buttonLeft.pack(side="right")
+
+
+
+	def imageRight(self,event=None):
+		if self.img_index < len(self.imgs)-1:
+			self.img_index += 1
+			self.ph_img = ImageTk.PhotoImage(self.imgs[self.img_index])
+			self.image_window.pack_forget()
+			self.image_window = ScrollableImage(self.right_viewer_content, image=self.ph_img, scrollbarwidth=6, 
+							   width=self.width-140, height=self.height)
+			self.image_window.pack(side="right", fill="both",expand=True)
+
+	def imageLeft(self,event=None):
+		if self.img_index > 0:
+			self.img_index -= 1
+			self.ph_img = ImageTk.PhotoImage(self.imgs[self.img_index])
+			self.image_window.pack_forget()
+			self.image_window = ScrollableImage(self.right_viewer_content, image=self.ph_img, scrollbarwidth=6, 
+							   width=self.width-140, height=self.height)
+			self.image_window.pack(side="right", fill="both",expand=True)
 
 	def rebuildPhrases(self):
 		'''Called during the saving operation. Cleanup the marks that have been "deleted" and updates the dictionary to reflect those changes'''
@@ -734,7 +751,10 @@ class Moulinette(tk.Tk):
 		subprocess.run(["pdflatex","-output-directory", ROOT+self.project, ROOT+self.project+PATH_SEP+"translation.tex"])
 
 	def uploadPDF(self):
-		pass
+		resp = self.apiInstance.api_instance.attachment_simple([ROOT+self.project+PATH_SEP+"translation.pdf"],self.zotItem.template["key"])
+		if resp["failure"] != []:
+			print("Failure to upload file")
+
 
 	def find(self,event=None):
 		self.editor_left.tag_remove('found','1.0',tk.END)
