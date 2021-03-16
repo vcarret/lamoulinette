@@ -11,7 +11,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from apiclient.http import MediaFileUpload, MediaIoBaseDownload
 import os
-from PIL import ImageTk, Image
+from PIL import ImageTk, Image, ImageGrab
 import requests
 from pyzotero import zotero
 import html
@@ -42,6 +42,13 @@ lang_map = {
 	'German': 'de',
 	'Italian': 'it'
 }
+
+img_latex = '''\\begin{figure}[H]
+    \\centering
+        \\centering
+        \\includegraphics[width=1\\textwidth]{new_images/%s}
+        \\caption*{%s}
+\\end{figure}'''
 
 
 def extractOCR(file, root, project, doOCR, firstpage=1):
@@ -152,54 +159,6 @@ def download_doc(service,file_up,destination):
 		print("Download %d%%." % int(status.progress() * 100))
 
 	service.files().delete(fileId=file_up['id']).execute()
-
-class ScrollableImage(tk.Frame):
-    '''Scrollable image'''
-    def __init__(self, master=None, **kw):
-        self.image = kw.pop('image', None)
-        sw = kw.pop('scrollbarwidth', 10)
-        super(ScrollableImage, self).__init__(master=master, **kw)
-        self.cnvs = tk.Canvas(self, highlightthickness=0, **kw)
-        self.cnvs.create_image(0, 0, anchor='nw', image=self.image)
-        # Vertical and Horizontal scrollbars
-        self.v_scroll = tk.Scrollbar(self, orient='vertical', width=sw)
-        self.h_scroll = tk.Scrollbar(self, orient='horizontal', width=sw)
-        # Grid and configure weight.
-        self.cnvs.grid(row=0, column=0,  sticky='nsew')
-        self.h_scroll.grid(row=1, column=0, sticky='ew')
-        self.v_scroll.grid(row=0, column=1, sticky='ns')
-        self.rowconfigure(0, weight=1)
-        self.columnconfigure(0, weight=1)
-        # Set the scrollbars to the canvas
-        self.cnvs.config(xscrollcommand=self.h_scroll.set, 
-                           yscrollcommand=self.v_scroll.set)
-        # Set canvas view to the scrollbars
-        self.v_scroll.config(command=self.cnvs.yview)
-        self.h_scroll.config(command=self.cnvs.xview)
-        # Assign the region to be scrolled 
-        self.cnvs.config(scrollregion=self.cnvs.bbox('all'))
-        self.cnvs.bind_class(self.cnvs, "<MouseWheel>", self.mouse_scroll)
-        self.cnvs.bind_class(self.cnvs, "<Button-4>", self.mouse_scroll)
-        self.cnvs.bind_class(self.cnvs, "<Button-5>", self.mouse_scroll)
-
-        self.cnvs.bind("<Button-1>", self.printEv)
-        self.cnvs.bind("<ButtonRelease-1>", self.printEv)
-
-    def printEv(self,event):
-    	print(event)
-
-    def mouse_scroll(self, evt):
-        x, y = self.winfo_pointerxy()
-        # print(str(self.winfo_containing(x,y)))
-        if "scrollableimage" in str(self.winfo_containing(x,y)):
-            if evt.delta:
-                self.cnvs.yview_scroll(int(-1*(evt.delta/120)), "units")
-            else:
-                if evt.num == 5:
-                    move = 1
-                else:
-                    move = -1
-                self.cnvs.yview_scroll(move, "units")
 
 class Phrase():
 	def __init__(self,phrase,index=None,prev=None,foll=None,page=None):

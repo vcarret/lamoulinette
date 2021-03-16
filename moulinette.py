@@ -88,28 +88,28 @@ class Moulinette(tk.Tk):
 
 		# Editing settings
 		self.edit_settings = ttk.Frame(self.notebook_settings)
-		# self.edit_settings.pack(fill=tk.BOTH,expand=True)
+		self.edit_settings.pack(fill=tk.BOTH,expand=True)
 
-		self.insert_button = ttk.Button(self.edit_settings, text="I",width=2, command=self.insertMark)
-		# self.insert_button.grid(column=0,row=0,columnspan=1, pady=(2,2), sticky="nsew", padx=(2,2))
+		self.insert_button = ttk.Button(self.edit_settings, text="I",width=2, command=self.insertImage)
+		self.insert_button.grid(column=0,row=0,columnspan=1, pady=(2,2), sticky="nsew", padx=(2,2))
 
 		self.dontTranslate_button = ttk.Button(self.edit_settings, text="Ⱦ",width=2, command=self.dontTranslate)
-		self.dontTranslate_button.grid(column=0,row=0,columnspan=1, pady=(2,2), sticky="nsew", padx=(2,2))
+		self.dontTranslate_button.grid(column=1,row=0,columnspan=1, pady=(2,2), sticky="nsew", padx=(2,2))
 
 		self.footnote_button = ttk.Button(self.edit_settings, text="F",width=2, command=self.insertFn)
-		self.footnote_button.grid(column=1,row=0,columnspan=1, pady=(2,2), sticky="nsew", padx=(2,2))
+		self.footnote_button.grid(column=2,row=0,columnspan=1, pady=(2,2), sticky="nsew", padx=(2,2))
 
 		self.makePhrases_button = ttk.Button(self.edit_settings, text="P",width=2, command=self.buildPhrasesFromEditor)
-		self.makePhrases_button.grid(column=2,row=0,columnspan=1, pady=(2,2), sticky="nsew", padx=(2,2))
+		self.makePhrases_button.grid(column=3,row=0,columnspan=1, pady=(2,2), sticky="nsew", padx=(2,2))
 
 		self.translate_button = ttk.Button(self.edit_settings, text="T",width=2, command=self.translateText)
-		self.translate_button.grid(column=3,row=0,columnspan=1, pady=(2,2), sticky="nsew", padx=(2,2))
+		self.translate_button.grid(column=4,row=0,columnspan=1, pady=(2,2), sticky="nsew", padx=(2,2))
 
 		self.makePDF_button = ttk.Button(self.edit_settings, text="M",width=2, command=self.makePDF)
-		self.makePDF_button.grid(column=4,row=0,columnspan=1, pady=(2,2), sticky="nsew", padx=(2,2))
+		self.makePDF_button.grid(column=5,row=0,columnspan=1, pady=(2,2), sticky="nsew", padx=(2,2))
 
 		self.uploadPDF_button = ttk.Button(self.edit_settings, text="U",width=2, command=self.uploadPDF)
-		self.uploadPDF_button.grid(column=5,row=0,columnspan=1, pady=(2,2), sticky="nsew", padx=(2,2))
+		self.uploadPDF_button.grid(column=6,row=0,columnspan=1, pady=(2,2), sticky="nsew", padx=(2,2))
 
 		self.findBox = ttk.Entry(self.edit_settings, font=self.default_font)
 		self.findBox.grid(column=0,row=1,columnspan=2, pady=(2,2), sticky="nsew", padx=(2,2))
@@ -228,43 +228,25 @@ class Moulinette(tk.Tk):
 		# Bindings
 		self.bind("<Control-s>", self.saveProject)
 		self.bind("<Control-Shift-S>", self.saveProject)
-		self.bind("<Control-i>", self.insertMark)
 		# self.unbind("<Control-f>")
 		self.bind("<Control-h>", self.setFocusReplace)
-		self.bind("<Control-Left>",self.imageLeft)
-		self.bind("<Control-Right>",self.imageRight)
+		self.bind("<Control-i>", self.insertImage)
+		self.bind("<Alt-Left>",self.imageLeft)
+		self.bind("<Alt-Right>",self.imageRight)
+		# self.editor_left.unbind("<Control-Right>")
 
 		self.editor_left.bind("<Control-f>", self.setFocusFinder)
 		self.editor_left.bind("<Control-a>", self.selectAll)
-		self.editor_left.bind("<Return>", self.insertNewl)
+		self.editor_left.bind("<Control-Return>", self.insertNewl)
+		self.editor_left.bind("<Alt-f>", self.insertFootnote)
+		self.editor_left.bind("<Alt-i>", self.insertItalics)
+		self.editor_left.bind("<Alt-u>", self.insertUnderline)
+		self.editor_left.bind("<Alt-b>", self.insertBold)
 
-		self.bind("<KeyPress>",self.printEv)
+		# self.bind("<KeyPsress>",self.printEv)
 
 	def printEv(self,event):
 		print(event)
-
-	def insertMark(self,event=None):
-		'''Insert a mark at the current position of the cursor. The marks and phrase dictionary are updated to reflect this addition'''
-		cur_pos = self.editor_left.index("insert")
-		prev_mark = self.getBegPhrase(cur_pos)
-		pos_beg = self.editor_left.mark_previous(prev_mark)
-		num = prev_mark.split("_")[2]
-		pos_end = self.editor_left.index("end_phrase_"+format(num))
-
-		self.editor_left.insert(cur_pos, "•")
-		self.editor_left.mark_set("end_phrase_"+format(num),cur_pos)
-		# There still is a problem with the following line
-		self.text["phrase_"+format(num)].phrase = self.editor_left.get(pos_beg,cur_pos).replace("•","")
-
-		self.text["n_phrases"] += 1
-
-		self.editor_left.mark_set("beg_phrase_"+format(self.text["n_phrases"]),cur_pos+"+1c")        
-		self.editor_left.mark_set("end_phrase_"+format(self.text["n_phrases"]),pos_end)
-		new_ph = self.editor_left.get(cur_pos,pos_end).replace("•","")
-
-		self.text['phrase_'+format(self.text["n_phrases"])] = Phrase(new_ph,index=self.text["n_phrases"],prev=num,foll=self.text["phrase_"+format(num)].foll)
-
-		self.text["phrase_"+format(num)].foll = format(self.text["n_phrases"])
 
 	def saveProject(self,event=None):
 		original_text = self.editor_left.get('1.0', tk.END)
@@ -278,7 +260,6 @@ class Moulinette(tk.Tk):
 			f.write(original_text.replace("•",""))
 
 		if event and event.state == 21:# code for ctrl+shift+S
-			# self.rebuildPhrases()
 			self.buildPhrasesFromEditor()
 			self.translateText()
 
@@ -297,7 +278,7 @@ class Moulinette(tk.Tk):
 		}]
 
 		with open(ROOT + self.project + PATH_SEP + 'project.moul', 'wb') as dict_phrases:
-			pickle.dump((self.zotItem,self.project,self.text), dict_phrases)
+			pickle.dump((self.zotItem,self.project), dict_phrases)
 
 		# self.zotItem.template["version"] += 1
 		try:
@@ -344,7 +325,6 @@ class Moulinette(tk.Tk):
 		self.loadText()
 		self.loadViewer()
 
-		self.text = {}
 		self.saveProject()
 
 	def loadText(self):
@@ -368,11 +348,9 @@ class Moulinette(tk.Tk):
 			msg.showerror("Error", "Please select a .pdf or . moul file")
 			return
 
-		self.text = {}
 		file_ext = file.split(".")[-1]
 		if file_ext.lower() == "pdf":
 			self.project = extractOCR(file,ROOT,self.project,self.doOCR.get(),int(self.firstpage.get()))
-			# self.buildPhrasesFromOriginal()
 			self.zotItem = ZotItem(self.itemType.get())
 			self.zotItem.template["collections"] = [self.zotero_api["destinations"]["Translations"]]
 			resp = self.apiInstance.createItem(self.zotItem)
@@ -383,9 +361,7 @@ class Moulinette(tk.Tk):
 				print("something went wrong with Zotero")
 		elif file_ext.lower() == "moul":
 			with open(file, 'rb') as dict_phrases:
-				self.zotItem,self.project,self.text = pickle.load(dict_phrases)
-			#self.project = file.split(".")[0].split(PATH_SEP)[-2]
-			# self.buildPhrasesFromProject()
+				self.zotItem,self.project = pickle.load(dict_phrases)
 		else:
 			msg.showerror("Error", "Wrong file extension")
 			return
@@ -396,7 +372,6 @@ class Moulinette(tk.Tk):
 		self.loadText()
 		self.loadViewer()
 		self.loadZotero()
-		# self.highlight_current_line()
 
 	def loadZotero(self):
 		'''Loads the fields corresponding to the current itemType in the Zotero panel on the left'''
@@ -459,8 +434,7 @@ class Moulinette(tk.Tk):
 		self.viewer_settings = tk.Frame(self.right_viewer_content)
 		self.viewer_settings.pack(side=tk.BOTTOM,expand=True,fill=tk.BOTH)
 
-		self.image_window = ScrollableImage(self.right_viewer_content, image=self.ph_img, scrollbarwidth=6, 
-							   width=self.width-140, height=self.height)
+		self.image_window = ScrollableImage(self.right_viewer_content, project=self.project, image=self.ph_img, scrollbarwidth=6, width=self.width-140, height=self.height)
 		self.image_window.pack(side="right", fill="both",expand=True)
 
 		self.buttonRight = ttk.Button(self.viewer_settings, text=">",width=2, command=self.imageRight)
@@ -469,61 +443,30 @@ class Moulinette(tk.Tk):
 		self.buttonLeft = ttk.Button(self.viewer_settings, text="<",width=2, command=self.imageLeft)
 		self.buttonLeft.pack(side="right")
 
+		if not path.exists(ROOT + self.project + PATH_SEP + "new_images"):
+			mkdir(ROOT + self.project + PATH_SEP + "new_images")
 
+		self.img_n = len(os.listdir(ROOT + self.project + PATH_SEP + "new_images"))
 
 	def imageRight(self,event=None):
 		if self.img_index < len(self.imgs)-1:
 			self.img_index += 1
 			self.ph_img = ImageTk.PhotoImage(self.imgs[self.img_index])
 			self.image_window.pack_forget()
-			self.image_window = ScrollableImage(self.right_viewer_content, image=self.ph_img, scrollbarwidth=6, 
-							   width=self.width-140, height=self.height)
+			self.image_window = ScrollableImage(self.right_viewer_content, project=self.project,image=self.ph_img, scrollbarwidth=6,width=self.width-140, height=self.height)
 			self.image_window.pack(side="right", fill="both",expand=True)
+
+		return "break"
 
 	def imageLeft(self,event=None):
 		if self.img_index > 0:
 			self.img_index -= 1
 			self.ph_img = ImageTk.PhotoImage(self.imgs[self.img_index])
 			self.image_window.pack_forget()
-			self.image_window = ScrollableImage(self.right_viewer_content, image=self.ph_img, scrollbarwidth=6, 
-							   width=self.width-140, height=self.height)
+			self.image_window = ScrollableImage(self.right_viewer_content, project=self.project,image=self.ph_img, scrollbarwidth=6, width=self.width-140, height=self.height)
 			self.image_window.pack(side="right", fill="both",expand=True)
 
-	def rebuildPhrases(self):
-		'''Called during the saving operation. Cleanup the marks that have been "deleted" and updates the dictionary to reflect those changes'''
-		marks = self.editor_left.dump('1.0', tk.END, **{"mark":True})
-		begend_prev = None
-		first = True
-		for i,(obj,name,ind) in enumerate(marks):
-			tmp = name.split("_")
-			begend = tmp[0]
-			try:
-				num = tmp[2]
-			except:
-				continue
-
-			if i > 0:
-				if begend == "beg" and begend == begend_prev:
-					# Displace the index to the place of the index that is being deleted
-					prev_ind = self.editor_left.index("beg_phrase_"+num_prev)
-					self.editor_left.mark_set("beg_phrase_"+num,prev_ind)
-
-					self.editor_left.mark_unset("beg_phrase_"+num_prev)
-					self.editor_left.mark_unset("end_phrase_"+num_prev)
-					prev = self.text["phrase_"+num_prev].prev
-					foll = self.text["phrase_"+num_prev].foll
-					if prev is not None:
-						self.text["phrase_"+format(prev)].foll = foll
-					else:
-						self.text["first"] = foll
-					if foll is not None:
-						self.text["phrase_"+format(foll)].prev = prev
-					else:
-						self.text["last"] = prev
-					del self.text["phrase_"+format(num_prev)]
-
-			begend_prev = begend
-			num_prev = num
+		return "break"
 
 	def buildPhrasesFromEditor(self):
 		'''Builds the phrase dictionary from the left panel editor
@@ -531,7 +474,6 @@ class Moulinette(tk.Tk):
 		# prev_end = self.editor_left.index(tk.END)
 		text = self.editor_left.get("1.0",tk.END)
 		self.editor_left.delete("1.0",tk.END)
-		self.text = {}
 		self.editor_left.tag_remove("phrase_1", 1.0, "end")
 		self.editor_left.tag_remove("phrase_2", 1.0, "end")
 
@@ -544,131 +486,15 @@ class Moulinette(tk.Tk):
 
 			prev = i-1 if i > 0 else None
 			foll = i+1 if i < (len(phrases)-1) else None
-			self.text['phrase_'+format(i)] = Phrase(cur_ph,index=i,prev=prev,foll=foll)
 
 			pos_beg = self.editor_left.index("insert")
 			self.editor_left.insert("insert", cur_ph)
 			pos_end = self.editor_left.index("insert")
 			self.editor_left.tag_add("color_phrase_"+format(i%2+1),pos_beg,pos_end)
 			self.editor_left.tag_add("phrase_"+format(i),pos_beg,pos_end)
-		
-		self.text["first"] = 0
-		self.text["last"] = i
-		self.text["n_phrases"] = i
 
 		# self.editor_left.delete("1.0",prev_end)
 		# print(self.editor_left.dump('1.0', tk.END, ))#**{"mark":True,'text':True}
-
-	def buildPhrasesFromOriginal(self):
-		'''Builds the phrase dictionary from a txt file with the ocred content, and writes the phrases in the editor on the left panel'''
-		with open(ROOT + self.project + PATH_SEP + "original.txt","r") as f:
-			text = f.read()
-
-		self.text = {}
-
-		phrases = re.split("(?<!\d)(?<!\s\S)(?<!\S\.\S)[\.\!\?](?!\))(?!\d)",text)
-		self.editor_left.insert("1.0", "•")
-		for i,ph in enumerate(phrases):
-			cur_ph = " " + ph.strip() + "."
-			cur_ph = cur_ph.replace("•","*")
-			# Perhaps do other operations such as detection of endline break
-
-			prev = i-1 if i > 0 else None
-			foll = i+1 if i < (len(phrases)-1) else None
-			self.text['phrase_'+format(i)] = Phrase(cur_ph,index=i,prev=prev,foll=foll)
-
-			self.editor_left.mark_set("beg_phrase_"+format(i),"insert")
-			self.editor_left.mark_gravity("beg_phrase_"+format(i),tk.LEFT)
-
-			self.editor_left.insert("insert", cur_ph)
-			self.editor_left.insert("insert", "•")
-
-			cur_ind = self.editor_left.index("insert")
-			new_ind = cur_ind+"-1c"
-			self.editor_left.mark_set("end_phrase_"+format(i),new_ind)
-			self.editor_left.mark_gravity("end_phrase_"+format(i),tk.RIGHT)
-		
-		self.text["first"] = 0
-		self.text["last"] = i
-		self.text["n_phrases"] = i
-
-	def buildPhrasesFromProject(self):
-		'''Takes the phrases from the dictionary of phrases and writes them to the editor in the left panel and the translated editor in the right panel'''
-		i = self.text["phrase_"+format(self.text["first"])].index       
-		self.editor_left.insert("insert", "•")
-		self.editor_right.insert("insert", "•")
-		while i is not None:
-			key = "phrase_"+format(i)
-			phrase = self.text[key]
-		# for i, (key,phrase) in enumerate(self.text.items()):
-			self.editor_left.mark_set("beg_" + key,"insert")
-			self.editor_left.mark_gravity("beg_"+key,tk.LEFT)
-			self.editor_right.mark_set("beg_" + key,"insert")
-			self.editor_right.mark_gravity("beg_"+key,tk.LEFT)
-
-			self.editor_left.insert("insert", phrase.phrase)
-			self.editor_left.insert("insert", "•")
-			cur_ind = self.editor_left.index("insert")
-			new_ind = cur_ind+"-1c"
-			self.editor_left.mark_set("end_"+key,new_ind)
-			self.editor_left.mark_gravity("end_"+key,tk.RIGHT)
-			# self.editor_left.update()
-
-			self.editor_right.insert("insert", phrase.translation)
-			self.editor_right.insert("insert", "•")
-			cur_ind = self.editor_right.index("insert")
-			new_ind = cur_ind+"-1c"
-			self.editor_right.mark_set("end_"+key,new_ind)
-			self.editor_right.mark_gravity("end_"+key,tk.RIGHT)
-			# self.editor_right.update()
-
-			i = self.text[key].foll
-
-	def checkChanges(self):
-		'''Called during the saving to check which phrases have changed.'''
-		i = self.text["phrase_"+format(self.text["first"])].index
-		while i is not None:
-			key = "phrase_"+format(i)
-			phrase = self.text[key]
-
-			beg_phrase = self.editor_left.index("beg_phrase_"+format(phrase.index))
-			end_phrase = self.editor_left.index("end_phrase_"+format(phrase.index))
-			cur_phrase = self.editor_left.get(beg_phrase,end_phrase)
-			if phrase.phrase != cur_phrase:
-				phrase.phrase = cur_phrase
-				phrase.changed = True
-
-			i = self.text[key].foll
-
-	def translateText_deprec(self):
-		'''Translates the phrases that have changed and that do not have a flag against them. The API used is google translate, see utils.py'''
-		# self.checkChanges()
-
-		i = self.text["phrase_"+format(self.text["first"])].index       
-		self.editor_right.insert("insert", "•")
-		while i is not None:
-			key = "phrase_"+format(i)
-			phrase = self.text[key]
-
-			self.editor_right.mark_set("beg_" + key,tk.END)
-			self.editor_right.mark_gravity("beg_" + key,tk.LEFT)
-			if not phrase.translate:
-				phrase.translation = phrase.phrase
-			elif phrase.changed:
-				# result = subprocess.run(["trans", lang_map[self.lang.get()] + ':en', '-brief', phrase.phrase], stdout=subprocess.PIPE)
-				# phrase.translation = result.stdout.decode('utf-8')[-1]
-				phrase.translation = translate_text(phrase.phrase,source=lang_map[self.lang.get()],target="en")
-				phrase.changed = False
-
-			self.editor_right.insert("insert", phrase.translation)
-			self.editor_right.insert("insert", "•")
-			cur_ind = self.editor_right.index("insert")
-			new_ind = cur_ind+"-1c"
-			self.editor_right.mark_set("end_"+key,new_ind)
-			self.editor_right.mark_gravity("end_"+key,tk.RIGHT)
-			self.editor_right.update()
-
-			i = self.text[key].foll
 
 	def translateText(self):
 		'''TODO: detect other latex cmds
@@ -721,9 +547,6 @@ class Moulinette(tk.Tk):
 		pos_end = self.editor_left.index(cur_phrase+".last")
 		self.editor_left.insert(pos_end+"-1c","}")
 
-		# prev_mark = self.getBegPhrase(cur_pos)
-		# self.text["phrase_"+prev_mark.split("_")[-1]].translate = False
-
 	def insertFn(self,event=None):
 		cur_pos = self.editor_left.index("insert")
 		cur_phrase = self.editor_left.tag_names(cur_pos)[1]
@@ -732,6 +555,19 @@ class Moulinette(tk.Tk):
 		pos_end = self.editor_left.index(cur_phrase+".last")
 		self.editor_left.insert(pos_end+"-1c","}")
 
+	def insertImage(self,event=None):
+		cur_pos = self.editor_left.index("insert")
+		img = Image.open(ROOT + self.project + PATH_SEP + "new_images/tmp.jpg")
+		ph_img = ImageTk.PhotoImage(img)
+
+		# self.editor_left.image_create(cur_pos,image=ph_img,padx=2,pady=2,align="center")
+		img_name = "image_" + format(self.img_n) + ".jpg"
+		new_img_latex = img_latex % ("image_" + format(self.img_n) + ".jpg", "")
+		self.editor_left.insert(cur_pos,new_img_latex)
+		img.save(ROOT + self.project + PATH_SEP + "new_images"+ PATH_SEP + img_name)
+		self.img_n += 1
+
+		return "break"
 
 	def makePDF(self):
 		title = self.zotItem.template["title"]
@@ -804,27 +640,28 @@ class Moulinette(tk.Tk):
 
 	def insertNewl(self,event=None):
 		cur_pos = self.editor_left.index("insert")
-		self.editor_left.insert(cur_pos,"\\newline \n")
+		self.editor_left.insert(cur_pos,"\\newline")
 
-	def highlight_current_line(self, interval=100):
-		'''Updates the 'current line' highlighting every "interval" milliseconds'''
-		self.editor_left.tag_remove("current_phrase", 1.0, "end")
+	def insertGen(self,word):
 		cur_pos = self.editor_left.index("insert")
-		prev_mark = self.getBegPhrase(cur_pos)
-		if prev_mark is None:
-			self.after(interval, self.highlight_current_line)
-			return
-		pos_beg = self.editor_left.index(prev_mark)
-		pos_end = self.editor_left.index(prev_mark.replace("beg","end"))
-		self.editor_left.tag_add("current_phrase", pos_beg, pos_end)
-		self.after(interval, self.highlight_current_line)
+		if self.editor_left.tag_ranges(tk.SEL):
+			self.editor_left.insert("sel.first","\\%s{" % word)
+			self.editor_left.insert("sel.last","}")
+		else:
+			self.editor_left.insert(cur_pos,"\\footnote{}")
+			self.editor_left.mark_set("insert",cur_pos+"+%dc" % (len(word) + 2))
 
-	def getBegPhrase(self,cur_pos):
-		prev_mark = self.editor_left.mark_previous(cur_pos)
-		# Maybe just check if we find "phrase" and call the function recusively
-		if prev_mark == "current" or prev_mark == "tk::anchor1":
-			prev_mark = self.editor_left.mark_previous(self.editor_left.index("current"))
-		return prev_mark
+	def insertFootnote(self,event=None):
+		self.insertGen("footnote")
+
+	def insertItalics(self,event=None):
+		self.insertGen("textit")
+
+	def insertUnderline(self,event=None):
+		self.insertGen("underline")
+
+	def insertBold(self,event=None):
+		self.insertGen("textbf")
 
 	def setFocusFinder(self,event):
 		self.findBox.insert(0,self.editor_left.get("sel.first","sel.last"))
@@ -848,6 +685,61 @@ class Moulinette(tk.Tk):
 		if itemKey:
 			self.loadZoteroItem(itemKey)
 
+class ScrollableImage(tk.Frame):
+	'''Scrollable image'''
+	def __init__(self, master=None, **kw):
+		self.project = kw.pop('project', None)
+		self.path = ROOT + self.project + PATH_SEP
+		self.image = kw.pop('image', None)
+		sw = kw.pop('scrollbarwidth', 10)
+		super(ScrollableImage, self).__init__(master=master, **kw)
+		self.cnvs = tk.Canvas(self, highlightthickness=0, **kw)
+		self.cnvs.create_image(0, 0, anchor='nw', image=self.image)
+		# Vertical and Horizontal scrollbars
+		self.v_scroll = tk.Scrollbar(self, orient='vertical', width=sw)
+		self.h_scroll = tk.Scrollbar(self, orient='horizontal', width=sw)
+		# Grid and configure weight.
+		self.cnvs.grid(row=0, column=0,  sticky='nsew')
+		self.h_scroll.grid(row=1, column=0, sticky='ew')
+		self.v_scroll.grid(row=0, column=1, sticky='ns')
+		self.rowconfigure(0, weight=1)
+		self.columnconfigure(0, weight=1)
+		# Set the scrollbars to the canvas
+		self.cnvs.config(xscrollcommand=self.h_scroll.set, 
+						   yscrollcommand=self.v_scroll.set)
+		# Set canvas view to the scrollbars
+		self.v_scroll.config(command=self.cnvs.yview)
+		self.h_scroll.config(command=self.cnvs.xview)
+		# Assign the region to be scrolled 
+		self.cnvs.config(scrollregion=self.cnvs.bbox('all'))
+		self.cnvs.bind_class(self.cnvs, "<MouseWheel>", self.mouse_scroll)
+		self.cnvs.bind_class(self.cnvs, "<Button-4>", self.mouse_scroll)
+		self.cnvs.bind_class(self.cnvs, "<Button-5>", self.mouse_scroll)
+
+		self.cnvs.bind("<Button-1>", self.saveCoord)
+		self.cnvs.bind("<ButtonRelease-1>", self.saveImg)
+
+	def saveCoord(self,event=None):
+		self.x,self.y = self.winfo_pointerxy()
+
+	def saveImg(self,event):
+		endx,endy = self.winfo_pointerxy()
+		position = (self.x,self.y,endx,endy)
+		image = ImageGrab.grab(position)
+		image.save(self.path + "new_images" + PATH_SEP + "tmp.jpg")
+
+	def mouse_scroll(self, evt):
+		x, y = self.winfo_pointerxy()
+		# print(str(self.winfo_containing(x,y)))
+		if "scrollableimage" in str(self.winfo_containing(x,y)):
+			if evt.delta:
+				self.cnvs.yview_scroll(int(-1*(evt.delta/120)), "units")
+			else:
+				if evt.num == 5:
+					move = 1
+				else:
+					move = -1
+				self.cnvs.yview_scroll(move, "units")
 
 
 if __name__ == "__main__":
