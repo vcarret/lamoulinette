@@ -477,15 +477,25 @@ class Moulinette(tk.Tk):
 		self.editor_left.tag_remove("phrase_1", 1.0, "end")
 		self.editor_left.tag_remove("phrase_2", 1.0, "end")
 
-		phrases = re.split("(?<!\d)(?<!\s\S)(?<!\S\.\S)[\.\!\?](?!\))(?!\d)",text)
+		text = text.replace("\n","")
+		regex = re.compile('|'.join([
+			r'(([^\.\?\!\;]*?)\\begin\{[a-z]*?\}.*?\\end\{[a-z]*?\})',
+			r'(?:([^\.\?\!\;]*?)\\(newline))',
+			r'(?:([^\.\?\!\;]*?)\\([a-z]+?)\{(.+?)\})',# Footnotes in particular
+			r'(.+?(?<!\d)(?<!\(\w)(?<!\S\.\S)[\.\?\!\;](?!\))(?!\d))']), flags=re.S)
+
+		# Utiliser le search method du widget avec la regex sans groupes pour insérer les tags
+		# Puis utiliser le findall pour la traduction
+
+		phrases = regex.findall(text)
+		# phrases = re.split(r"(?<!\d)(?<!\s\S)(?<!\S\.\S)[\.\!\?](?!\))(?!\d)",text)
 		for i,ph in enumerate(phrases):
+			if ph[1] != '':
+
 			if ph == "" or ph == " ":
 				continue
 			cur_ph = " " + ph.strip() + "."
 			# Perhaps do other operations such as detection of endline break
-
-			prev = i-1 if i > 0 else None
-			foll = i+1 if i < (len(phrases)-1) else None
 
 			pos_beg = self.editor_left.index("insert")
 			self.editor_left.insert("insert", cur_ph)
@@ -500,6 +510,9 @@ class Moulinette(tk.Tk):
 		'''TODO: detect other latex cmds
 		TODO: replace ! ? by themselves '''
 		text = self.editor_left.get("1.0",tk.END)
+
+		text = text.replace("\n","")
+
 
 		phrases = re.split("(?<!\d)(?<!\s\S)(?<!\S\.\S)[\.\!\?](?!\))(?!\d)",text)
 		for i,ph in enumerate(phrases):
@@ -686,7 +699,7 @@ class Moulinette(tk.Tk):
 			self.loadZoteroItem(itemKey)
 
 class ScrollableImage(tk.Frame):
-	'''Scrollable image'''
+	'''Scrollable image. See: https://stackoverflow.com/a/56046307'''
 	def __init__(self, master=None, **kw):
 		self.project = kw.pop('project', None)
 		self.path = ROOT + self.project + PATH_SEP
