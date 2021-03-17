@@ -2,19 +2,13 @@
 
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
+\usepackage[english]{babel}
 
-\usepackage{natbib}
 \usepackage{graphicx}
 \usepackage{geometry}
-\usepackage{setspace}
-\usepackage{geometry}
-\usepackage{amsmath}
-\usepackage[linktocpage=false]{hyperref}
-\usepackage{wrapfig}
 \usepackage{float}
-\usepackage{mathrsfs}
-\usepackage[bottom]{footmisc}
 \usepackage{caption}
+\usepackage[bottom]{footmisc}
 
 \geometry{
 	a4paper,
@@ -24,25 +18,19 @@
 	bottom=25mm
 }
 
-\newlength\Colsep
-\setlength\Colsep{10pt}
+\setlength{\parindent}{2em}
+\setlength{\parskip}{1em}
+\renewcommand{\baselinestretch}{1.5}
 
 \title{%s}
-\author{%s}
+\author{%s\thanks{Translated semi-automatically by %s on %s.}}
 
 \date{%s}
-	
-\setlength{\parskip}{2mm}
-\doublespacing
-\expandafter\def\expandafter\quote\expandafter{\quote\vspace{-5mm}\singlespacing}
-\DeclareUnicodeCharacter{2217}{-}
 
 \begin{document}
 \maketitle
 
-\begin{abstract}
 %s
-\end{abstract}
 
 \pagebreak
 

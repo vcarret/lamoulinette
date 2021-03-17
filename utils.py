@@ -46,9 +46,14 @@ lang_map = {
 img_latex = '''\\begin{figure}[H]
     \\centering
         \\centering
-        \\includegraphics[width=1\\textwidth]{new_images/%s}
+        \\includegraphics[width=1\\textwidth]{%s}
         \\caption*{%s}
 \\end{figure}'''
+
+abs_template = '''\\begin{abstract}
+%s
+\\end{abstract}'''
+
 
 
 def extractOCR(file, root, project, doOCR, firstpage=1):
@@ -411,3 +416,25 @@ item_fields = [
 	"bookSection",
 	"issue"
 ]
+
+
+common_abbr = {
+	'dutch': {
+		'a.h.w.': 'als het ware',
+		'bijv.': 'bijvoorbeeld',
+		'blz.': 'bladzijde',
+		'b.v.': 'bijvoorbeeld',
+		'd.w.z.': 'dat wil zeggen',
+		'Dr.': 'Dokter',
+		'e.a.': 'en andere',
+		'id.': 'idem',
+		'i.e.': 'dat wil zeggen',
+		'm.a.w.': 'met andere woorden',
+		'm.i.': 'mijn mening',
+		't.a.v.': 'ten aanzien van',
+		't.o.v.': 'ten opzichte van',
+		'Vgl.': 'Vergelijk',
+		'vgl.': 'vergelijk',
+		'w.o.': 'waaronder',
+	}
+}

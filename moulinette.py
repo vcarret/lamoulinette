@@ -216,13 +216,9 @@ class Moulinette(tk.Tk):
 
 
 		# Tags
-		self.editor_left.tag_configure("current_phrase", background="#d8d8d8")
-		self.editor_left.tag_lower("current_phrase")
+		# self.editor_left.tag_configure("current_phrase", background="#d8d8d8")
+		# self.editor_left.tag_lower("current_phrase")
 
-		self.editor_left.tag_configure("color_phrase_1", background="#cecece")
-		self.editor_left.tag_lower("color_phrase_1")
-		self.editor_left.tag_configure("color_phrase_2", background="#bcbcbc")
-		self.editor_left.tag_lower("color_phrase_2")
 
 
 		# Bindings
@@ -233,11 +229,13 @@ class Moulinette(tk.Tk):
 		self.bind("<Control-i>", self.insertImage)
 		self.bind("<Alt-Left>",self.imageLeft)
 		self.bind("<Alt-Right>",self.imageRight)
+		self.bind("<Control-BackSpace>", self.deleteWord)
 		# self.editor_left.unbind("<Control-Right>")
 
 		self.editor_left.bind("<Control-f>", self.setFocusFinder)
 		self.editor_left.bind("<Control-a>", self.selectAll)
-		self.editor_left.bind("<Control-Return>", self.insertNewl)
+		self.editor_left.bind("<Control-Return>", self.insertPar)
+		self.editor_left.bind("<Control-KP_Enter>", self.insertPar)
 		self.editor_left.bind("<Alt-f>", self.insertFootnote)
 		self.editor_left.bind("<Alt-i>", self.insertItalics)
 		self.editor_left.bind("<Alt-u>", self.insertUnderline)
@@ -330,6 +328,10 @@ class Moulinette(tk.Tk):
 	def loadText(self):
 		with open(ROOT + self.project + PATH_SEP + "original.txt","r") as f:
 			text = f.read()
+
+		if self.lang.get():
+			self.dict_abbr = common_abbr[self.lang.get().lower()]
+			text = re.sub('|'.join(self.dict_abbr.keys()),self.abbr_repl,text)
 
 		self.editor_left.insert("1.0",text)
 
@@ -468,81 +470,87 @@ class Moulinette(tk.Tk):
 
 		return "break"
 
+	def abbr_repl(self,match):
+		repl = self.dict_abbr[match.group()] if match.group() in self.dict_abbr else match.group()
+		return repl
+
 	def buildPhrasesFromEditor(self):
 		'''Builds the phrase dictionary from the left panel editor
-		TODO: calling it does not force view to top'''
-		# prev_end = self.editor_left.index(tk.END)
+		'''
 		text = self.editor_left.get("1.0",tk.END)
-		self.editor_left.delete("1.0",tk.END)
-		self.editor_left.tag_remove("phrase_1", 1.0, "end")
-		self.editor_left.tag_remove("phrase_2", 1.0, "end")
+		for tag in self.editor_left.tag_names():
+		    self.editor_left.tag_delete(tag)
 
-		text = text.replace("\n","")
-		regex = re.compile('|'.join([
-			r'(([^\.\?\!\;]*?)\\begin\{[a-z]*?\}.*?\\end\{[a-z]*?\})',
-			r'(?:([^\.\?\!\;]*?)\\(newline))',
-			r'(?:([^\.\?\!\;]*?)\\([a-z]+?)\{(.+?)\})',# Footnotes in particular
-			r'(.+?(?<!\d)(?<!\(\w)(?<!\S\.\S)[\.\?\!\;](?!\))(?!\d))']), flags=re.S)
+		self.editor_left.tag_configure("color_phrase_1", background="#cecece")
+		self.editor_left.tag_lower("color_phrase_1")
+		self.editor_left.tag_configure("color_phrase_2", background="#bcbcbc")
+		self.editor_left.tag_lower("color_phrase_2")
 
-		# Utiliser le search method du widget avec la regex sans groupes pour insérer les tags
-		# Puis utiliser le findall pour la traduction
+		self.regex = re.compile('|'.join([
+			r'(?:(?P<bef_fig>[^\.\?\!\;]*?)(?P<fig>\\begin\{[a-z]*?\}.*?\\end\{[a-z]*?\}))',
+			r'(?:(?P<bef_par>[^\.\?\!\;]*?)\\(?P<par>par))',
+			r'(?:(?P<bef_cmd>[^\.\?\!\;]*?)\\(?P<cmd>[a-z]+?)\{(?P<cmd_text>.+?)\})',# Footnotes in particular
+			r'(?P<text>.+?(?<!\d)(?<!\(\w)(?<!\S\.\S)[\.\?\!\;](?!\))(?!\d))']),# Beware one of the lookbehind excludes phrases in parenthesis 
+		flags=re.S)
 
-		phrases = regex.findall(text)
-		# phrases = re.split(r"(?<!\d)(?<!\s\S)(?<!\S\.\S)[\.\!\?](?!\))(?!\d)",text)
-		for i,ph in enumerate(phrases):
-			if ph[1] != '':
+		dict_phrases = self.regex.finditer(text)
+		for i,match in enumerate(dict_phrases):
+			# print(format(i) + ": " + match.group())
+			beg,end = match.span()
+			idx = '1.0 + %dc' % (beg)
+			lastidx = '1.0 + %dc' % (end)
+			self.editor_left.tag_add("color_phrase_"+format(i%2+1),idx,lastidx)  
+			self.editor_left.tag_add("phrase_"+format(i),idx,lastidx)
 
-			if ph == "" or ph == " ":
-				continue
-			cur_ph = " " + ph.strip() + "."
-			# Perhaps do other operations such as detection of endline break
-
-			pos_beg = self.editor_left.index("insert")
-			self.editor_left.insert("insert", cur_ph)
-			pos_end = self.editor_left.index("insert")
-			self.editor_left.tag_add("color_phrase_"+format(i%2+1),pos_beg,pos_end)
-			self.editor_left.tag_add("phrase_"+format(i),pos_beg,pos_end)
-
-		# self.editor_left.delete("1.0",prev_end)
-		# print(self.editor_left.dump('1.0', tk.END, ))#**{"mark":True,'text':True}
+		# print(self.editor_left.dump('1.0', tk.END, ))#**{"tags":True,'text':True}
 
 	def translateText(self):
-		'''TODO: detect other latex cmds
-		TODO: replace ! ? by themselves '''
+		'''Based on the regex above and the named groups detected
+		'''
 		text = self.editor_left.get("1.0",tk.END)
 
-		text = text.replace("\n","")
+		# text = text.replace("\n","s")
 
+		phrases = self.regex.finditer(text)
 
-		phrases = re.split("(?<!\d)(?<!\s\S)(?<!\S\.\S)[\.\!\?](?!\))(?!\d)",text)
 		for i,ph in enumerate(phrases):
-			cur_ph = ph.strip() + "."
-			if "\dont{" in cur_ph:
-				trans_ph = cur_ph.replace("\dont{","").replace("}","")
-			else:
-				if "\\newline" in cur_ph:
-					cur_ph = cur_ph.replace("\\newline","")
-					newl = "\\newline \n"
-				else:
-					newl = " "
-
-				if "\\footnote{" in cur_ph:
-					cur_ph = cur_ph.replace("\\footnote{","").replace("}","")
-					fn = True
-				else:
-					fn = False
-
-				trans_ph = translate_text(cur_ph,source=lang_map[self.lang.get()],target="en")
-				pos_beg = self.editor_left.index("phrase_"+format(i)+".first")
-				self.editor_left.insert(pos_beg,"\dont{")
-				pos_end = self.editor_left.index("phrase_"+format(i)+".last")
-				self.editor_left.insert(pos_end+"-1c","}")
-
-			if fn:
-				trans_ph = "\\footnote{" + trans_ph + "}"
-
 			pos_beg = self.editor_right.index("insert")
-			self.editor_right.insert("insert", newl + trans_ph)
+			# Put the original phrase in a don't translate cmd
+			self.editor_left.insert("phrase_"+format(i)+".first","\dont{")
+			self.editor_left.insert("phrase_"+format(i)+".last","}")
+			# Check which group has been matched
+			if ph.groupdict()["text"]:
+				cur_ph = ph.groupdict()["text"]
+				trans_ph = translate_text(cur_ph,source=lang_map[self.lang.get()],target="en")
+				self.editor_right.insert("insert", trans_ph + " ")
+			elif ph.groupdict()["fig"]:
+				self.editor_right.insert(pos_beg,"\n")
+				self.editor_right.insert(pos_beg,ph.groupdict()["fig"])
+				self.editor_right.insert(pos_beg,"\n")
+				if ph.groupdict()["bef_fig"].strip():
+					cur_ph = ph.groupdict()["bef_fig"]
+					trans_ph = translate_text(cur_ph,source=lang_map[self.lang.get()],target="en")
+					self.editor_right.insert(pos_beg,trans_ph + " ")
+			elif ph.groupdict()["cmd"]:
+				if ph.groupdict()["cmd"] == "dont":
+					self.editor_right.insert(pos_beg,ph.groupdict()["cmd_text"])
+				else:
+					self.editor_right.insert(pos_beg,"}")
+					cur_ph = ph.groupdict()["cmd_text"]
+					trans_ph = translate_text(cur_ph,source=lang_map[self.lang.get()],target="en")
+					self.editor_right.insert(pos_beg,trans_ph)
+					self.editor_right.insert(pos_beg,"\\"+ph.groupdict()["cmd"]+"{")
+					if ph.groupdict()["bef_cmd"].strip():
+						cur_ph = ph.groupdict()["bef_cmd"]
+						trans_ph = translate_text(cur_ph,source=lang_map[self.lang.get()],target="en")
+						self.editor_right.insert(pos_beg,trans_ph)
+			elif ph.groupdict()["par"]:
+				self.editor_right.insert(pos_beg,"\\par \n")
+				if ph.groupdict()["bef_par"].strip():
+					cur_ph = ph.groupdict()["bef_par"]
+					trans_ph = translate_text(cur_ph,source=lang_map[self.lang.get()],target="en")
+					self.editor_right.insert(pos_beg,trans_ph + " ")
+
 			pos_end = self.editor_right.index("insert")
 			self.editor_right.tag_add("color_phrase_"+format(i%2+1),pos_beg,pos_end)
 			self.editor_right.tag_add("phrase_"+format(i),pos_beg,pos_end)	
@@ -553,47 +561,45 @@ class Moulinette(tk.Tk):
 		'''Flags the phrase where the cursor currently is to not be translated. 
 		TODO: update the tag after insertion
 		TODO: merge with other insert operations'''
-		cur_pos = self.editor_left.index("insert")
-		cur_phrase = self.editor_left.tag_names(cur_pos)[1]
-		pos_beg = self.editor_left.index(cur_phrase+".first")
-		self.editor_left.insert(pos_beg,"\dont{")
-		pos_end = self.editor_left.index(cur_phrase+".last")
-		self.editor_left.insert(pos_end+"-1c","}")
+		cur_phrase = self.editor_left.tag_names("insert")[1]
+		self.editor_left.insert(cur_phrase+".last","\dont{")
+		self.editor_left.insert(cur_phrase+".last"+"-1c","}")
 
 	def insertFn(self,event=None):
-		cur_pos = self.editor_left.index("insert")
-		cur_phrase = self.editor_left.tag_names(cur_pos)[1]
-		pos_beg = self.editor_left.index(cur_phrase+".first")
-		self.editor_left.insert(pos_beg,"\\footnote{")
-		pos_end = self.editor_left.index(cur_phrase+".last")
-		self.editor_left.insert(pos_end+"-1c","}")
+		cur_phrase = self.editor_left.tag_names("insert")[1]
+		self.editor_left.insert(cur_phrase+".first","\\footnote{")
+		self.editor_left.insert(cur_phrase+".last"+"-1c","}")
 
 	def insertImage(self,event=None):
-		cur_pos = self.editor_left.index("insert")
 		img = Image.open(ROOT + self.project + PATH_SEP + "new_images/tmp.jpg")
 		ph_img = ImageTk.PhotoImage(img)
 
-		# self.editor_left.image_create(cur_pos,image=ph_img,padx=2,pady=2,align="center")
+		# self.editor_left.image_create("insert",image=ph_img,padx=2,pady=2,align="center")
 		img_name = "image_" + format(self.img_n) + ".jpg"
-		new_img_latex = img_latex % ("image_" + format(self.img_n) + ".jpg", "")
-		self.editor_left.insert(cur_pos,new_img_latex)
+		new_img_latex = img_latex % (ROOT + self.project + PATH_SEP + "new_images/image_" + format(self.img_n) + ".jpg", "")
+		self.editor_left.insert("insert",new_img_latex)
 		img.save(ROOT + self.project + PATH_SEP + "new_images"+ PATH_SEP + img_name)
 		self.img_n += 1
 
 		return "break"
 
 	def makePDF(self):
+		translator = "Vincent Carret"
+		translation_date = datetime.today().strftime("%B %d, %Y")
+
 		title = self.zotItem.template["title"]
 		author = self.zotItem.template["creators"][0]["firstName"] + " " + self.zotItem.template["creators"][0]["lastName"]
 		date = self.zotItem.template["date"]
 		abstract = self.zotItem.template["abstractNote"]
+		if abstract.strip():
+			abstract = abs_template % abstract
 		content = self.editor_right.get("1.0",tk.END)
 		content = content.replace("%","\\%")
 
 		with open("tex_template.tex", "r") as f:
 			template = f.read()
 
-		template = template % (title,author,date,abstract,content,)
+		template = template % (title,author,translator,translation_date,date,abstract,content,)
 		with open(ROOT + self.project + PATH_SEP + "translation.tex","w") as f:
 			f.write(template)
 
@@ -621,6 +627,7 @@ class Moulinette(tk.Tk):
 				idx = lastidx  
 
 			self.editor_left.tag_config('found', foreground ='red') 
+		self.editor_left.update()
 		self.findBox.focus_set() 
 
 	def replace(self,event=None):
@@ -651,18 +658,18 @@ class Moulinette(tk.Tk):
 		return "break"
 		# self.editor_left.icursor(tk.END)
 
-	def insertNewl(self,event=None):
-		cur_pos = self.editor_left.index("insert")
-		self.editor_left.insert(cur_pos,"\\newline")
+	def insertPar(self,event=None):
+		self.editor_left.insert("insert","\\par")
+		if event.keycode == 104:
+			self.editor_left.insert("insert","\n")
 
 	def insertGen(self,word):
-		cur_pos = self.editor_left.index("insert")
 		if self.editor_left.tag_ranges(tk.SEL):
 			self.editor_left.insert("sel.first","\\%s{" % word)
 			self.editor_left.insert("sel.last","}")
 		else:
-			self.editor_left.insert(cur_pos,"\\footnote{}")
-			self.editor_left.mark_set("insert",cur_pos+"+%dc" % (len(word) + 2))
+			self.editor_left.insert("insert","\\footnote{}")
+			self.editor_left.mark_set("insert","insert"+"+%dc" % (len(word) + 2))
 
 	def insertFootnote(self,event=None):
 		self.insertGen("footnote")
@@ -676,13 +683,21 @@ class Moulinette(tk.Tk):
 	def insertBold(self,event=None):
 		self.insertGen("textbf")
 
+	def deleteWord(self,event=None):
+		self.editor_left.delete("insert -1c wordstart", "insert")
+		return 'break'
+
 	def setFocusFinder(self,event):
-		self.findBox.insert(0,self.editor_left.get("sel.first","sel.last"))
+		if self.editor_left.tag_ranges(tk.SEL):
+			self.findBox.delete(0,'end')
+			self.findBox.insert(0,self.editor_left.get("sel.first","sel.last"))
 		self.findBox.focus_set()
 		return "break"
 
 	def setFocusReplace(self,event):
-		self.replaceBox.insert(0,self.editor_left.get("sel.first","sel.last"))
+		if self.editor_left.tag_ranges(tk.SEL):
+			self.replaceBox.delete(0,'end')
+			self.replaceBox.insert(0,self.editor_left.get("sel.first","sel.last"))
 		self.replaceBox.focus_set()
 
 	def browseFiles(self):
