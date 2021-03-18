@@ -54,7 +54,7 @@ class Moulinette(tk.Tk):
 		self.filepath_entry = ttk.Entry(self.load_settings, font=self.default_font)
 		self.filepath_entry.grid(column=1,row=0, pady=(2,2), sticky="nsew")
 		# self.filepath_entry.insert(0,"/home/carter/Desktop/Cours/Thèse/Programming_economics/translation_project/Tinbergen - 1930 - De werkloosheid.pdf")#
-		self.filepath_entry.insert(0,"/home/carter/Documents/Moulinette/Tinbergen - 1930 - De werkloosheid/project.moul")
+		# self.filepath_entry.insert(0,"/home/carter/Documents/Moulinette/Tinbergen - 1930 - De werkloosheid/project.moul")
 		self.browse_button = ttk.Button(self.load_settings, text="Browse", command=self.browseFiles)
 		self.browse_button.grid(column=2,row=0, pady=(2,2), sticky="nsew", padx=(5,5))
 
@@ -226,27 +226,34 @@ class Moulinette(tk.Tk):
 		self.bind("<Control-Shift-S>", self.saveProject)
 		# self.unbind("<Control-f>")
 		self.bind("<Control-h>", self.setFocusReplace)
-		self.bind("<Control-i>", self.insertImage)
+		self.bind("<Control-p>", self.buildPhrasesFromEditor)
+		self.bind("<Alt-r>", self.insertImage)
 		self.bind("<Alt-Left>",self.imageLeft)
 		self.bind("<Alt-Right>",self.imageRight)
-		self.bind("<Control-BackSpace>", self.deleteWord)
 		# self.editor_left.unbind("<Control-Right>")
 
+		self.editor_left.bind("<Control-BackSpace>", self.deleteWord)
 		self.editor_left.bind("<Control-f>", self.setFocusFinder)
 		self.editor_left.bind("<Control-a>", self.selectAll)
 		self.editor_left.bind("<Control-Return>", self.insertPar)
 		self.editor_left.bind("<Control-KP_Enter>", self.insertPar)
+		self.editor_left.bind("<KP_Enter>", self.insertSimpleNewl)
 		self.editor_left.bind("<Alt-f>", self.insertFootnote)
 		self.editor_left.bind("<Alt-i>", self.insertItalics)
 		self.editor_left.bind("<Alt-u>", self.insertUnderline)
 		self.editor_left.bind("<Alt-b>", self.insertBold)
+		self.editor_left.bind("<Alt-e>", self.insertEquation)
+		self.editor_left.bind("<Alt-u>", self.insertCenterline)
+		self.editor_left.bind("<Alt-Shift-E>", self.insertEquation)
+		self.editor_left.bind("<Alt-p>", self.insertSimplePar)
 
-		# self.bind("<KeyPsress>",self.printEv)
+		# self.bind("<KeyPress>",self.printEv)
 
 	def printEv(self,event):
 		print(event)
 
 	def saveProject(self,event=None):
+		'''Saves the original and translated texts, the zotero item and the project name. With shift pressed, also saves changes made to Zotero metadata'''
 		original_text = self.editor_left.get('1.0', tk.END)
 		translated_text = self.editor_right.get('1.0', tk.END)
 
@@ -257,37 +264,33 @@ class Moulinette(tk.Tk):
 		with open(ROOT + self.project + PATH_SEP + "original.txt", "w") as f:
 			f.write(original_text.replace("•",""))
 
-		if event and event.state == 21:# code for ctrl+shift+S
-			self.buildPhrasesFromEditor()
-			self.translateText()
-
 		with open(ROOT + self.project + PATH_SEP + "translation.txt", "w") as f:
 			f.write(translated_text.replace("•",""))
 
 		# [print(x) for x in self.editor_left.dump('1.0', tk.END, **{"mark":True,'text':True})]
-		for k,v in self.values_zotero.items():
-			self.zotItem.update(k,v.get())
-		
-		self.zotItem.template["itemType"] = self.itemType.get()
-		self.zotItem.template["creators"] = [{
-			'creatorType': 'author',
-			'firstName': self.firstName.get(),
-			'lastName': self.lastName.get()
-		}]
+		if event and event.state == 21:# code for ctrl+shift+S
+			for k,v in self.values_zotero.items():
+				self.zotItem.update(k,v.get())
+			
+			self.zotItem.template["itemType"] = self.itemType.get()
+			self.zotItem.template["creators"] = [{
+				'creatorType': 'author',
+				'firstName': self.firstName.get(),
+				'lastName': self.lastName.get()
+			}]
+
+			try:
+				resp = self.apiInstance.updateItem(self.zotItem)
+			except:
+				version = self.apiInstance.api_instance.item(self.zotItem.template["key"])['version']
+				self.zotItem.template["version"] = version
+				resp = self.apiInstance.updateItem(self.zotItem)
+
+			if not resp:
+				print("something went wrong with Zotero update")
 
 		with open(ROOT + self.project + PATH_SEP + 'project.moul', 'wb') as dict_phrases:
 			pickle.dump((self.zotItem,self.project), dict_phrases)
-
-		# self.zotItem.template["version"] += 1
-		try:
-			resp = self.apiInstance.updateItem(self.zotItem)
-		except:
-			version = self.apiInstance.api_instance.item(self.zotItem.template["key"])['version']
-			self.zotItem.template["version"] = version
-			resp = self.apiInstance.updateItem(self.zotItem)
-
-		if not resp:
-			print("something went wrong with Zotero update")
 
 	def loadZoteroItem(self,itemKey):
 		item = self.apiInstance.api_instance.item(itemKey)
@@ -332,6 +335,7 @@ class Moulinette(tk.Tk):
 		if self.lang.get():
 			self.dict_abbr = common_abbr[self.lang.get().lower()]
 			text = re.sub('|'.join(self.dict_abbr.keys()),self.abbr_repl,text)
+			text = text.replace("$","§")
 
 		self.editor_left.insert("1.0",text)
 
@@ -474,7 +478,7 @@ class Moulinette(tk.Tk):
 		repl = self.dict_abbr[match.group()] if match.group() in self.dict_abbr else match.group()
 		return repl
 
-	def buildPhrasesFromEditor(self):
+	def buildPhrasesFromEditor(self,event=None):
 		'''Builds the phrase dictionary from the left panel editor
 		'''
 		text = self.editor_left.get("1.0",tk.END)
@@ -487,10 +491,10 @@ class Moulinette(tk.Tk):
 		self.editor_left.tag_lower("color_phrase_2")
 
 		self.regex = re.compile('|'.join([
-			r'(?:(?P<bef_fig>[^\.\?\!\;]*?)(?P<fig>\\begin\{[a-z]*?\}.*?\\end\{[a-z]*?\}))',
-			r'(?:(?P<bef_par>[^\.\?\!\;]*?)\\(?P<par>par))',
-			r'(?:(?P<bef_cmd>[^\.\?\!\;]*?)\\(?P<cmd>[a-z]+?)\{(?P<cmd_text>.+?)\})',# Footnotes in particular
-			r'(?P<text>.+?(?<!\d)(?<!\(\w)(?<!\S\.\S)[\.\?\!\;](?!\))(?!\d))']),# Beware one of the lookbehind excludes phrases in parenthesis 
+			r'(?:(?P<bef_fig>[^\.\?\!\;\:]*?)(?P<fig>\\begin\{[a-z]*?\}.*?\\end\{[a-z]*?\}))',
+			r'(?:(?P<bef_par>[^\.\?\!\;\:]*?)\\(?P<par>par))',
+			r'(?:(?P<bef_cmd>[^\.\?\!\;\:]*?)\\(?P<cmd>[a-z]+?)\{(?P<cmd_text>.+?)\})',# Footnotes in particular
+			r'(?P<text>.+?(?<!\d)(?<!\(\w)(?<!\S\.\S)[\.\?\!\;\:](?!\))(?!\d))']),# Beware one of the lookbehind excludes phrases in parenthesis 
 		flags=re.S)
 
 		dict_phrases = self.regex.finditer(text)
@@ -522,7 +526,7 @@ class Moulinette(tk.Tk):
 			if ph.groupdict()["text"]:
 				cur_ph = ph.groupdict()["text"]
 				trans_ph = translate_text(cur_ph,source=lang_map[self.lang.get()],target="en")
-				self.editor_right.insert("insert", trans_ph + " ")
+				self.editor_right.insert("insert", " " + trans_ph)
 			elif ph.groupdict()["fig"]:
 				self.editor_right.insert(pos_beg,"\n")
 				self.editor_right.insert(pos_beg,ph.groupdict()["fig"])
@@ -530,7 +534,7 @@ class Moulinette(tk.Tk):
 				if ph.groupdict()["bef_fig"].strip():
 					cur_ph = ph.groupdict()["bef_fig"]
 					trans_ph = translate_text(cur_ph,source=lang_map[self.lang.get()],target="en")
-					self.editor_right.insert(pos_beg,trans_ph + " ")
+					self.editor_right.insert(pos_beg,trans_ph)
 			elif ph.groupdict()["cmd"]:
 				if ph.groupdict()["cmd"] == "dont":
 					self.editor_right.insert(pos_beg,ph.groupdict()["cmd_text"])
@@ -595,18 +599,19 @@ class Moulinette(tk.Tk):
 			abstract = abs_template % abstract
 		content = self.editor_right.get("1.0",tk.END)
 		content = content.replace("%","\\%")
+		content = content.replace("\\caption*{}","")
 
 		with open("tex_template.tex", "r") as f:
 			template = f.read()
 
 		template = template % (title,author,translator,translation_date,date,abstract,content,)
-		with open(ROOT + self.project + PATH_SEP + "translation.tex","w") as f:
+		with open(ROOT + self.project + PATH_SEP + "Translation of " + self.project + ".tex","w") as f:
 			f.write(template)
 
-		subprocess.run(["pdflatex","-output-directory", ROOT+self.project, ROOT+self.project+PATH_SEP+"translation.tex"])
+		subprocess.run(["pdflatex","-output-directory", ROOT+self.project, ROOT+self.project+PATH_SEP+"Translation of " + self.project +".tex"])
 
 	def uploadPDF(self):
-		resp = self.apiInstance.api_instance.attachment_simple([ROOT+self.project+PATH_SEP+"translation.pdf"],self.zotItem.template["key"])
+		resp = self.apiInstance.api_instance.attachment_simple([ROOT+self.project+PATH_SEP+ "Translation of " + self.project + ".pdf"],self.zotItem.template["key"])
 		if resp["failure"] != []:
 			print("Failure to upload file")
 
@@ -668,8 +673,8 @@ class Moulinette(tk.Tk):
 			self.editor_left.insert("sel.first","\\%s{" % word)
 			self.editor_left.insert("sel.last","}")
 		else:
-			self.editor_left.insert("insert","\\footnote{}")
-			self.editor_left.mark_set("insert","insert"+"+%dc" % (len(word) + 2))
+			self.editor_left.insert("insert","\\%s{}" % word)
+			self.editor_left.mark_set("insert","insert"+"-%dc" % 1)
 
 	def insertFootnote(self,event=None):
 		self.insertGen("footnote")
@@ -682,10 +687,36 @@ class Moulinette(tk.Tk):
 
 	def insertBold(self,event=None):
 		self.insertGen("textbf")
+	
+	def insertCenterline(self,event=None):
+		self.insertGen("centerline")
 
 	def deleteWord(self,event=None):
 		self.editor_left.delete("insert -1c wordstart", "insert")
 		return 'break'
+
+	def insertEquation(self,event=None):
+		if event.state == 24:
+			first = "$"
+			last = "$"
+		elif event.state == 25:
+			first = "\n\\begin{equation}\n"
+			last = "\n\\end{equation}\n"
+		else:
+			print(event)
+			return
+		if self.editor_left.tag_ranges(tk.SEL):
+			self.editor_left.insert("sel.first","%s" % first)
+			self.editor_left.insert("sel.last","%s" % last)
+		else:
+			self.editor_left.insert("insert","%s" % first + last)
+			self.editor_left.mark_set("insert","insert"+"-%dc" % len(last))
+
+	def insertSimplePar(self,event=None):
+		self.editor_left.insert("insert","\\par")
+
+	def insertSimpleNewl(self,event=None):
+		self.editor_left.insert("insert","\n")
 
 	def setFocusFinder(self,event):
 		if self.editor_left.tag_ranges(tk.SEL):

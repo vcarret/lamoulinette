@@ -43,11 +43,11 @@ lang_map = {
 	'Italian': 'it'
 }
 
+# See https://stackoverflow.com/questions/122348/scale-image-down-but-not-up-in-latex for the scaling of images
 img_latex = '''\\begin{figure}[H]
     \\centering
-        \\centering
-        \\includegraphics[width=1\\textwidth]{%s}
-        \\caption*{%s}
+    \\scalegraphics{%s}
+    \\caption*{%s}
 \\end{figure}'''
 
 abs_template = '''\\begin{abstract}
@@ -192,6 +192,7 @@ def translate_text(text,source="",target="en"):
 		return ""
 
 	clean_text = text.replace("\n"," ")
+	clean_text = re.sub("\$(?P<math>.+?)\$","<span translate='no'>\g<math></span>",clean_text)
 
 	translate_client = translate.Client()# Or use direct credentials in translation_api.json
 	# from google.oauth2 import service_account
@@ -203,8 +204,9 @@ def translate_text(text,source="",target="en"):
 	# Text can also be a sequence of strings, in which case this method
 	# will return a sequence of results for each text.
 	result = translate_client.translate(clean_text,source_language=source,target_language=target)
+	result = re.sub("<span translate='no'>(?P<math>.+?)</span>","\$\g<math>\$",result["translatedText"])
 
-	return html.unescape(result["translatedText"])
+	return html.unescape(result)
 
 def check_num(newval):
 	return re.match('^[0-9]*$', newval) is not None and len(newval) <= 5
@@ -436,5 +438,17 @@ common_abbr = {
 		'Vgl.': 'Vergelijk',
 		'vgl.': 'vergelijk',
 		'w.o.': 'waaronder',
+	},
+	'german': {
+		'bzw.': 'beziehungsweise',
+		'Abb.': 'Abbildung',
+		'abb.': 'abbildung',
+		'd.h.': 'das heißt',
+		'd. h.': 'das heißt',
+		'z. B.': 'zum Beispiel',
+		'z.B.': 'zum Beispiel',
+		'a. a. o.': 'am angegebenen Orte',
+		# ' s.': 'seite',
+		# 'Vjh.': 'Vierteljahrshefte'
 	}
 }

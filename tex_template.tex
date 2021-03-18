@@ -1,10 +1,11 @@
-\documentclass[a4paper,12pt, oneside, hidelinks]{article}
+\documentclass[a4paper,12pt, oneside]{article}
 
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage[english]{babel}
 
 \usepackage{graphicx}
+\usepackage{calc}
 \usepackage{geometry}
 \usepackage{float}
 \usepackage{caption}
@@ -16,6 +17,14 @@
 	right=25mm,
 	top=25mm,
 	bottom=25mm
+}
+
+\newlength{\imgwidth}
+
+\newcommand\scalegraphics[1]{
+    \settowidth{\imgwidth}{\includegraphics{#1}}
+    \setlength{\imgwidth}{\minof{\imgwidth}{\textwidth}}
+    \includegraphics[width=\imgwidth]{#1}
 }
 
 \setlength{\parindent}{2em}
