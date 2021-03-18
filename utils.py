@@ -192,7 +192,8 @@ def translate_text(text,source="",target="en"):
 		return ""
 
 	clean_text = text.replace("\n"," ")
-	clean_text = re.sub("\$(?P<math>.+?)\$","<span translate='no'>\g<math></span>",clean_text)
+	clean_text = re.sub("\$(?P<math>.+?)\$","<span translate='no'>math\g<math></span>",clean_text)
+	clean_text = re.sub("(?P<page>\[%d+?\])","<span translate='no'>page\g<page></span>",clean_text)
 
 	translate_client = translate.Client()# Or use direct credentials in translation_api.json
 	# from google.oauth2 import service_account
@@ -204,7 +205,8 @@ def translate_text(text,source="",target="en"):
 	# Text can also be a sequence of strings, in which case this method
 	# will return a sequence of results for each text.
 	result = translate_client.translate(clean_text,source_language=source,target_language=target)
-	result = re.sub("<span translate='no'>(?P<math>.+?)</span>","\$\g<math>\$",result["translatedText"])
+	result = re.sub("<span translate='no'>math(?P<math>.+?)</span>","$\g<math>$",result["translatedText"])
+	result = re.sub("<span translate='no'>page(?P<page>.+?)</span>","\g<page>",result)
 
 	return html.unescape(result)
 
@@ -448,6 +450,7 @@ common_abbr = {
 		'z. B.': 'zum Beispiel',
 		'z.B.': 'zum Beispiel',
 		'a. a. o.': 'am angegebenen Orte',
+		'u. zw.': 'und zwar'
 		# ' s.': 'seite',
 		# 'Vjh.': 'Vierteljahrshefte'
 	}

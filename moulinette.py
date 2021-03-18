@@ -243,10 +243,10 @@ class Moulinette(tk.Tk):
 		self.editor_left.bind("<Alt-u>", self.insertUnderline)
 		self.editor_left.bind("<Alt-b>", self.insertBold)
 		self.editor_left.bind("<Alt-e>", self.insertEquation)
-		self.editor_left.bind("<Alt-u>", self.insertCenterline)
+		self.editor_left.bind("<Alt-c>", self.insertCenterline)
 		self.editor_left.bind("<Alt-Shift-E>", self.insertEquation)
 		self.editor_left.bind("<Alt-p>", self.insertSimplePar)
-
+		self.editor_left.bind("<Control-Shift-L>", self.replLinebreaks)
 		# self.bind("<KeyPress>",self.printEv)
 
 	def printEv(self,event):
@@ -474,6 +474,12 @@ class Moulinette(tk.Tk):
 
 		return "break"
 
+	def replLinebreaks(self,event=None):
+		text = self.editor_left.get("1.0",tk.END)
+		text = text.replace("\n","\\par\n")
+		self.editor_left.delete("1.0",tk.END)
+		self.editor_left.insert("1.0",text)
+
 	def abbr_repl(self,match):
 		repl = self.dict_abbr[match.group()] if match.group() in self.dict_abbr else match.group()
 		return repl
@@ -491,9 +497,9 @@ class Moulinette(tk.Tk):
 		self.editor_left.tag_lower("color_phrase_2")
 
 		self.regex = re.compile('|'.join([
-			r'(?:(?P<bef_fig>[^\.\?\!\;\:]*?)(?P<fig>\\begin\{[a-z]*?\}.*?\\end\{[a-z]*?\}))',
-			r'(?:(?P<bef_par>[^\.\?\!\;\:]*?)\\(?P<par>par))',
-			r'(?:(?P<bef_cmd>[^\.\?\!\;\:]*?)\\(?P<cmd>[a-z]+?)\{(?P<cmd_text>.+?)\})',# Footnotes in particular
+			r'(?:(?P<bef_fig>[^\$\.\?\!\;\:]*?)(?P<fig>\\begin\{[a-z]*?\}.*?\\end\{[a-z]*?\}))',
+			r'(?:(?P<bef_par>[^\$\.\?\!\;\:]*?)\\(?P<par>par))',
+			r'(?:(?P<bef_cmd>[^\$\.\?\!\;\:]*?)\\(?P<cmd>[a-z]+?)\{(?P<cmd_text>.+?)\})',# Footnotes in particular
 			r'(?P<text>.+?(?<!\d)(?<!\(\w)(?<!\S\.\S)[\.\?\!\;\:](?!\))(?!\d))']),# Beware one of the lookbehind excludes phrases in parenthesis 
 		flags=re.S)
 
@@ -534,7 +540,7 @@ class Moulinette(tk.Tk):
 				if ph.groupdict()["bef_fig"].strip():
 					cur_ph = ph.groupdict()["bef_fig"]
 					trans_ph = translate_text(cur_ph,source=lang_map[self.lang.get()],target="en")
-					self.editor_right.insert(pos_beg,trans_ph)
+					self.editor_right.insert(pos_beg," " + trans_ph)
 			elif ph.groupdict()["cmd"]:
 				if ph.groupdict()["cmd"] == "dont":
 					self.editor_right.insert(pos_beg,ph.groupdict()["cmd_text"])
@@ -543,17 +549,18 @@ class Moulinette(tk.Tk):
 					cur_ph = ph.groupdict()["cmd_text"]
 					trans_ph = translate_text(cur_ph,source=lang_map[self.lang.get()],target="en")
 					self.editor_right.insert(pos_beg,trans_ph)
-					self.editor_right.insert(pos_beg,"\\"+ph.groupdict()["cmd"]+"{")
+					fnspace = "" if ph.groupdict()["cmd"] == "footnote" else " "
+					self.editor_right.insert(pos_beg,fnspace+"\\"+ph.groupdict()["cmd"]+"{")
 					if ph.groupdict()["bef_cmd"].strip():
 						cur_ph = ph.groupdict()["bef_cmd"]
 						trans_ph = translate_text(cur_ph,source=lang_map[self.lang.get()],target="en")
-						self.editor_right.insert(pos_beg,trans_ph)
+						self.editor_right.insert(pos_beg," " + trans_ph)
 			elif ph.groupdict()["par"]:
 				self.editor_right.insert(pos_beg,"\\par \n")
 				if ph.groupdict()["bef_par"].strip():
 					cur_ph = ph.groupdict()["bef_par"]
 					trans_ph = translate_text(cur_ph,source=lang_map[self.lang.get()],target="en")
-					self.editor_right.insert(pos_beg,trans_ph + " ")
+					self.editor_right.insert(pos_beg, " " + trans_ph)
 
 			pos_end = self.editor_right.index("insert")
 			self.editor_right.tag_add("color_phrase_"+format(i%2+1),pos_beg,pos_end)
@@ -644,7 +651,8 @@ class Moulinette(tk.Tk):
 			idx = "1.0"
 			while True:
 				idx = self.editor_left.search(s,idx,stopindex=tk.END,nocase=self.nocase.get(),regexp=self.regexp.get(),exact=self.exact.get(),count=nchars) 
-				if not idx: 
+
+				if not idx or idx > self.editor_left.index(tk.END): 
 					break
 
 				lastidx = '%s + %dc' % (idx, nchars.get()) 
@@ -700,8 +708,8 @@ class Moulinette(tk.Tk):
 			first = "$"
 			last = "$"
 		elif event.state == 25:
-			first = "\n\\begin{equation}\n"
-			last = "\n\\end{equation}\n"
+			first = "\\begin{equation}\n"
+			last = "\n\\end{equation}"
 		else:
 			print(event)
 			return
