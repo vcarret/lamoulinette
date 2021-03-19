@@ -182,7 +182,7 @@ class Footnote(Phrase):
 		self.pos = None
 
 
-def translate_text(text,source="",target="en"):
+def translate_text(text,translate_client,src="",target="en"):
 	"""Translates text into the target language.
 
 	Target must be an ISO 639-1 language code.
@@ -195,16 +195,12 @@ def translate_text(text,source="",target="en"):
 	clean_text = re.sub("\$(?P<math>.+?)\$","<span translate='no'>math\g<math></span>",clean_text)
 	clean_text = re.sub("(?P<page>\[%d+?\])","<span translate='no'>page\g<page></span>",clean_text)
 
-	translate_client = translate.Client()# Or use direct credentials in translation_api.json
-	# from google.oauth2 import service_account
-	# credentials = service_account.Credentials.from_service_account_file('/home/carter/Desktop/Cours/Thèse/Programming_economics/translation_project/translation_api.json')
-
 	if isinstance(clean_text, six.binary_type):
 		clean_text = clean_text.decode("utf-8")
 
 	# Text can also be a sequence of strings, in which case this method
 	# will return a sequence of results for each text.
-	result = translate_client.translate(clean_text,source_language=source,target_language=target)
+	result = translate_client.translate(clean_text,source_language=src,target_language=target)
 	result = re.sub("<span translate='no'>math(?P<math>.+?)</span>","$\g<math>$",result["translatedText"])
 	result = re.sub("<span translate='no'>page(?P<page>.+?)</span>","\g<page>",result)
 
@@ -425,21 +421,31 @@ item_fields = [
 common_abbr = {
 	'dutch': {
 		'a.h.w.': 'als het ware',
+		'betr.': 'betrekking',
 		'bijv.': 'bijvoorbeeld',
 		'blz.': 'bladzijde',
 		'b.v.': 'bijvoorbeeld',
 		'd.w.z.': 'dat wil zeggen',
 		'Dr.': 'Dokter',
 		'e.a.': 'en andere',
+		' ev.': ' ev',
+		'enz.': 'enzovoorts',
 		'id.': 'idem',
 		'i.e.': 'dat wil zeggen',
+		'i.p.v.': 'in plaats van',
 		'm.a.w.': 'met andere woorden',
 		'm.i.': 'mijn mening',
+		'nl.': 'namelijk',
+		'n1.': 'namelijk',
+		'o.a.': 'og andet',
+		'resp.': 'respektive',
 		't.a.v.': 'ten aanzien van',
 		't.o.v.': 'ten opzichte van',
 		'Vgl.': 'Vergelijk',
 		'vgl.': 'vergelijk',
 		'w.o.': 'waaronder',
+		'z.g.': 'zogenaamd',
+		'zgn.': 'zogenaamd',
 	},
 	'german': {
 		'bzw.': 'beziehungsweise',

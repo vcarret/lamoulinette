@@ -127,16 +127,20 @@ class Moulinette(tk.Tk):
 
 		self.regexp = tk.BooleanVar()
 		self.regexp.set(False)
-		ttk.Checkbutton(self.edit_settings, text='regexp?', variable=self.regexp,onvalue=True,offvalue=False).grid(column=0,row=3,padx=(2,2), pady=(2,2))
+		ttk.Checkbutton(self.edit_settings, text='regexp?', variable=self.regexp,onvalue=True,offvalue=False).grid(column=0,row=2,padx=(2,2), pady=(2,2))
 
 		self.nocase = tk.BooleanVar()
 		self.nocase.set(True)
-		ttk.Checkbutton(self.edit_settings, text='nocase?', variable=self.nocase,onvalue=True,offvalue=False).grid(column=1,row=3,padx=(2,2), pady=(2,2))
+		ttk.Checkbutton(self.edit_settings, text='nocase?', variable=self.nocase,onvalue=True,offvalue=False).grid(column=1,row=2,padx=(2,2), pady=(2,2))
 
 		self.exact = tk.BooleanVar()
 		self.exact.set(False)
-		ttk.Checkbutton(self.edit_settings, text='exact?', variable=self.exact,onvalue=True,offvalue=False).grid(column=2,row=3,padx=(2,2), pady=(2,2))
+		ttk.Checkbutton(self.edit_settings, text='exact?', variable=self.exact,onvalue=True,offvalue=False).grid(column=2,row=2,padx=(2,2), pady=(2,2))
 
+		self.findFirstPageBox = ttk.Entry(self.edit_settings, font=self.default_font)
+		self.findFirstPageBox.grid(column=3,row=2,columnspan=1, pady=(2,2), sticky="nsew", padx=(2,2))
+
+		ttk.Button(self.edit_settings, text="Find pages", command=self.findPages).grid(column=4,row=2,columnspan=1, pady=(2,2), sticky="nsew", padx=(2,2))
 
 		# End notebook settings
 		self.notebook_settings.add(self.load_settings,text="Load")
@@ -500,7 +504,7 @@ class Moulinette(tk.Tk):
 			r'(?:(?P<bef_fig>[^\$\.\?\!\;\:]*?)(?P<fig>\\begin\{[a-z]*?\}.*?\\end\{[a-z]*?\}))',
 			r'(?:(?P<bef_par>[^\$\.\?\!\;\:]*?)\\(?P<par>par))',
 			r'(?:(?P<bef_cmd>[^\$\.\?\!\;\:]*?)\\(?P<cmd>[a-z]+?)\{(?P<cmd_text>.+?)\})',# Footnotes in particular
-			r'(?P<text>.+?(?<!\d)(?<!\(\w)(?<!\S\.\S)[\.\?\!\;\:](?!\))(?!\d))']),# Beware one of the lookbehind excludes phrases in parenthesis 
+			r'(?P<text>.+?(?<!\d)(?<!\(\w)(?<! [A-Za-z])(?<!\S\.\S)[\.\?\!\;\:](?!\.+)(?!\))(?!\d))']),# Beware one of the lookbehind excludes phrases in parenthesis 
 		flags=re.S)
 
 		dict_phrases = self.regex.finditer(text)
@@ -520,6 +524,9 @@ class Moulinette(tk.Tk):
 		text = self.editor_left.get("1.0",tk.END)
 
 		# text = text.replace("\n","s")
+		translate_client = translate.Client()# Or use direct credentials in translation_api.json
+		# from google.oauth2 import service_account
+		# credentials = service_account.Credentials.from_service_account_file('/home/carter/Desktop/Cours/Thèse/Programming_economics/translation_project/translation_api.json')
 
 		phrases = self.regex.finditer(text)
 
@@ -531,7 +538,7 @@ class Moulinette(tk.Tk):
 			# Check which group has been matched
 			if ph.groupdict()["text"]:
 				cur_ph = ph.groupdict()["text"]
-				trans_ph = translate_text(cur_ph,source=lang_map[self.lang.get()],target="en")
+				trans_ph = translate_text(cur_ph,translate_client,src=lang_map[self.lang.get()],target="en")
 				self.editor_right.insert("insert", " " + trans_ph)
 			elif ph.groupdict()["fig"]:
 				self.editor_right.insert(pos_beg,"\n")
@@ -539,7 +546,7 @@ class Moulinette(tk.Tk):
 				self.editor_right.insert(pos_beg,"\n")
 				if ph.groupdict()["bef_fig"].strip():
 					cur_ph = ph.groupdict()["bef_fig"]
-					trans_ph = translate_text(cur_ph,source=lang_map[self.lang.get()],target="en")
+					trans_ph = translate_text(cur_ph,translate_client,src=lang_map[self.lang.get()],target="en")
 					self.editor_right.insert(pos_beg," " + trans_ph)
 			elif ph.groupdict()["cmd"]:
 				if ph.groupdict()["cmd"] == "dont":
@@ -547,19 +554,19 @@ class Moulinette(tk.Tk):
 				else:
 					self.editor_right.insert(pos_beg,"}")
 					cur_ph = ph.groupdict()["cmd_text"]
-					trans_ph = translate_text(cur_ph,source=lang_map[self.lang.get()],target="en")
+					trans_ph = translate_text(cur_ph,translate_client,src=lang_map[self.lang.get()],target="en")
 					self.editor_right.insert(pos_beg,trans_ph)
 					fnspace = "" if ph.groupdict()["cmd"] == "footnote" else " "
 					self.editor_right.insert(pos_beg,fnspace+"\\"+ph.groupdict()["cmd"]+"{")
 					if ph.groupdict()["bef_cmd"].strip():
 						cur_ph = ph.groupdict()["bef_cmd"]
-						trans_ph = translate_text(cur_ph,source=lang_map[self.lang.get()],target="en")
+						trans_ph = translate_text(cur_ph,translate_client,src=lang_map[self.lang.get()],target="en")
 						self.editor_right.insert(pos_beg," " + trans_ph)
 			elif ph.groupdict()["par"]:
 				self.editor_right.insert(pos_beg,"\\par \n")
 				if ph.groupdict()["bef_par"].strip():
 					cur_ph = ph.groupdict()["bef_par"]
-					trans_ph = translate_text(cur_ph,source=lang_map[self.lang.get()],target="en")
+					trans_ph = translate_text(cur_ph,translate_client,src=lang_map[self.lang.get()],target="en")
 					self.editor_right.insert(pos_beg, " " + trans_ph)
 
 			pos_end = self.editor_right.index("insert")
@@ -607,6 +614,7 @@ class Moulinette(tk.Tk):
 		content = self.editor_right.get("1.0",tk.END)
 		content = content.replace("%","\\%")
 		content = content.replace("\\caption*{}","")
+		content = content.replace("&","\&")
 
 		with open("tex_template.tex", "r") as f:
 			template = f.read()
@@ -622,17 +630,39 @@ class Moulinette(tk.Tk):
 		if resp["failure"] != []:
 			print("Failure to upload file")
 
+	def findPages(self,event=None):
+		s = int(self.findFirstPageBox.get())
+		nchars = tk.IntVar()
+		if s:
+			idx = "1.0"
+			for i in range(len(self.imgs)):
+				if not idx:
+					idx = '1.0'
+				s_newl = "\n"+format(s)
+				idx = self.editor_left.search(s_newl,idx,stopindex=tk.END,count=nchars) 
+				if not idx:
+					s += 1
+					continue
+
+				self.editor_left.insert(idx+'+1c','[')
+				self.editor_left.insert(idx+'+%dc' % (nchars.get()+1),']')
+				s += 1
 
 	def find(self,event=None):
 		self.editor_left.tag_remove('found','1.0',tk.END)
 		s = self.findBox.get()
 		nchars = tk.IntVar()
+		first = True
 		if s:
 			idx = "1.0"
 			while True:
 				idx = self.editor_left.search(s,idx,stopindex=tk.END,nocase=self.nocase.get(),regexp=self.regexp.get(),exact=self.exact.get(),count=nchars) 
 				if not idx: 
 					break
+
+				if first and self.editor_left.compare(idx, '>','insert'):
+					self.editor_left.see(idx)
+					first = False
 
 				lastidx = '% s+% dc' % (idx, nchars.get()) 
 				self.editor_left.tag_add('found', idx, lastidx)  
@@ -652,7 +682,7 @@ class Moulinette(tk.Tk):
 			while True:
 				idx = self.editor_left.search(s,idx,stopindex=tk.END,nocase=self.nocase.get(),regexp=self.regexp.get(),exact=self.exact.get(),count=nchars) 
 
-				if not idx or idx > self.editor_left.index(tk.END): 
+				if not idx or self.editor_left.compare(idx, '>', self.editor_left.index(tk.END)):
 					break
 
 				lastidx = '%s + %dc' % (idx, nchars.get()) 
