@@ -61,14 +61,16 @@ class Moulinette(tk.Tk):
 		self.browse_zot_button = ttk.Button(self.load_settings, text="Browse Zotero", command=self.browseZotero)
 		self.browse_zot_button.grid(column=1,row=1,columnspan=1, pady=(2,2), sticky="nsew", padx=(5,5))
 
+		ttk.Button(self.load_settings, text="⟳", command=self.updateZotero).grid(column=0,row=1,columnspan=1, pady=(2,2), sticky="nsew", padx=(5,5))
+
 		self.load_button = ttk.Button(self.load_settings, text="Load File", command=self.loadFile)
 		self.load_button.grid(column=2,row=1,columnspan=1, pady=(2,2), sticky="nsew", padx=(5,5))
 
 		self.project = ""
 		
-		self.doOCR = tk.BooleanVar()
-		self.doOCR.set(False)
-		ttk.Checkbutton(self.load_settings, text='do OCR', variable=self.doOCR,onvalue=True,offvalue=False).grid(column=3,row=0,padx=(5,5), pady=(2,2))
+		self.desalt = tk.BooleanVar()
+		self.desalt.set(False)
+		ttk.Checkbutton(self.load_settings, text='de-salt', variable=self.desalt,onvalue=True,offvalue=False).grid(column=3,row=0,padx=(5,5), pady=(2,2))
 
 		# We should always avoid translating during the first run. Force user to clean the text before sending it to Google Translate API which charges per char
 		self.doTranslate = tk.BooleanVar()
@@ -80,10 +82,10 @@ class Moulinette(tk.Tk):
 		ttk.Combobox(self.load_settings, textvariable=self.lang, font=self.default_font,state="readonly", 
 			values=("Dutch","German","Italian")).grid(column=4,row=1, pady=(2,2), sticky="nsew", columnspan=2)
 
-		ttk.Label(self.load_settings,text='First Page: ').grid(column=6, row=0, sticky='nsew')
+		ttk.Label(self.load_settings,text='First Page: ').grid(column=4, row=0, sticky='nsew')
 		self.firstpage = tk.StringVar()
 		self.firstPageBox = ttk.Entry(self.load_settings, textvariable=self.firstpage, validate='key', validatecommand=self.check_num_wrapper)
-		self.firstPageBox.grid(column=7, row=0, sticky='nsew')
+		self.firstPageBox.grid(column=5, row=0, sticky='nsew')
 		self.firstPageBox.insert(0,1)
 
 		# Editing settings
@@ -309,6 +311,7 @@ class Moulinette(tk.Tk):
 		if "data" in item:
 			if "title" in item["data"]:
 				data += " - " + item["data"]["title"]
+
 		self.project = data
 		self.zotItem = ZotItem(self.itemType.get())
 		self.zotItem.template = item["data"]
@@ -328,7 +331,9 @@ class Moulinette(tk.Tk):
 				msg.showerror("Error", "There is no pdf file attached to the item")
 				return
 
-		self.project = extractOCR(file,ROOT,self.project,self.doOCR.get(),int(self.firstpage.get()))
+		self.filepath_entry.delete(0,tk.END)
+		self.filepath_entry.insert(0,file)
+		self.extractOCR()
 		self.loadText()
 		self.loadViewer()
 
@@ -360,9 +365,13 @@ class Moulinette(tk.Tk):
 			msg.showerror("Error", "Please select a .pdf or . moul file")
 			return
 
+		if not self.lang.get():
+			msg.showerror("Error", "Please select a language")
+			return
+
 		file_ext = file.split(".")[-1]
 		if file_ext.lower() == "pdf":
-			self.project = extractOCR(file,ROOT,self.project,self.doOCR.get(),int(self.firstpage.get()))
+			self.extractOCR()
 			self.zotItem = ZotItem(self.itemType.get())
 			self.zotItem.template["collections"] = [self.zotero_api["destinations"]["Translations"]]
 			resp = self.apiInstance.createItem(self.zotItem)
@@ -480,6 +489,28 @@ class Moulinette(tk.Tk):
 
 		return "break"
 
+	def extractOCR(self):
+		file = self.filepath_entry.get()
+		if self.project == "":
+			self.project = file.split(".")[0].split(PATH_SEP)[-1]
+
+		proj_path = ROOT + self.project
+		if not path.exists(proj_path):
+			mkdir(proj_path)
+
+		pages = split_pdf(file,self.project,int(self.firstpage.get()))
+		lang = lang_map_tess[self.lang.get()]
+		for img in pages:
+			text = parse_img(img,lang,self.desalt.get())
+			print(text)
+			text = transf_text(text)
+			self.editor_left.insert("insert",text)
+			self.editor_left.update()
+
+		with open(proj_path + PATH_SEP + "original.txt", "w") as f:
+			text = self.editor_left.get('1.0',tk.END)
+			f.write(text)
+
 	def replLinebreaks(self,event=None):
 		text = self.editor_left.get("1.0",tk.END)
 		reg = re.compile(r"(?P<bef>(?<!figure\}))(?P<aft>\n(?![ ]*\\))")
@@ -542,7 +573,7 @@ class Moulinette(tk.Tk):
 			# Check which group has been matched
 			if ph.groupdict()["text"]:
 				cur_ph = ph.groupdict()["text"]
-				trans_ph = translate_text(cur_ph,translate_client,src=lang_map[self.lang.get()],target="en")
+				trans_ph = translate_text(cur_ph,translate_client,src=lang_map_google[self.lang.get()],target="en")
 				self.editor_right.insert("insert", " " + trans_ph)
 			elif ph.groupdict()["fig"]:
 				self.editor_right.insert(pos_beg,"\n")
@@ -550,7 +581,7 @@ class Moulinette(tk.Tk):
 				self.editor_right.insert(pos_beg,"\n")
 				if ph.groupdict()["bef_fig"].strip():
 					cur_ph = ph.groupdict()["bef_fig"]
-					trans_ph = translate_text(cur_ph,translate_client,src=lang_map[self.lang.get()],target="en")
+					trans_ph = translate_text(cur_ph,translate_client,src=lang_map_google[self.lang.get()],target="en")
 					self.editor_right.insert(pos_beg," " + trans_ph)
 			elif ph.groupdict()["cmd"]:
 				if ph.groupdict()["cmd"] == "dont":
@@ -558,19 +589,19 @@ class Moulinette(tk.Tk):
 				else:
 					self.editor_right.insert(pos_beg,"}")
 					cur_ph = ph.groupdict()["cmd_text"]
-					trans_ph = translate_text(cur_ph,translate_client,src=lang_map[self.lang.get()],target="en")
+					trans_ph = translate_text(cur_ph,translate_client,src=lang_map_google[self.lang.get()],target="en")
 					self.editor_right.insert(pos_beg,trans_ph)
 					fnspace = "" if ph.groupdict()["cmd"] == "footnote" else " "
 					self.editor_right.insert(pos_beg,fnspace+"\\"+ph.groupdict()["cmd"]+"{")
 					if ph.groupdict()["bef_cmd"].strip():
 						cur_ph = ph.groupdict()["bef_cmd"]
-						trans_ph = translate_text(cur_ph,translate_client,src=lang_map[self.lang.get()],target="en")
+						trans_ph = translate_text(cur_ph,translate_client,src=lang_map_google[self.lang.get()],target="en")
 						self.editor_right.insert(pos_beg," " + trans_ph)
 			elif ph.groupdict()["par"]:
 				self.editor_right.insert(pos_beg,"\\par \n")
 				if ph.groupdict()["bef_par"].strip():
 					cur_ph = ph.groupdict()["bef_par"]
-					trans_ph = translate_text(cur_ph,translate_client,src=lang_map[self.lang.get()],target="en")
+					trans_ph = translate_text(cur_ph,translate_client,src=lang_map_google[self.lang.get()],target="en")
 					self.editor_right.insert(pos_beg, " " + trans_ph)
 
 			pos_end = self.editor_right.index("insert")
@@ -796,10 +827,26 @@ class Moulinette(tk.Tk):
 			self.filepath_entry.insert(0, filename)
 
 	def browseZotero(self):
-		collection = self.apiInstance.api_instance.collection_items(self.zotero_api["destinations"]["Translations"])
+		if not self.lang.get():
+			msg.showerror("Error", "Please select a language")
+			return
+
+		if not os.path.exists(ROOT + ".zotero_coll"):
+			self.updateZotero()
+
+		with open(ROOT + ".zotero_coll","rb") as f:
+			collection = pickle.load(f)
+
 		itemKey = ZoteroDialog(self.content,collection).show()
 		if itemKey:
 			self.loadZoteroItem(itemKey)
+
+	def updateZotero(self):
+		collection = self.apiInstance.api_instance.collection_items(self.zotero_api["destinations"]["Translations"],sort="date",direction="desc",limit=50)
+		
+		with open(ROOT + ".zotero_coll","wb") as f:
+			pickle.dump(collection, f)
+
 
 class ScrollableImage(tk.Frame):
 	'''Scrollable image. See: https://stackoverflow.com/a/56046307'''

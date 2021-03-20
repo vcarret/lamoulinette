@@ -12,6 +12,8 @@ from google.auth.transport.requests import Request
 from apiclient.http import MediaFileUpload, MediaIoBaseDownload
 import os
 from PIL import ImageTk, Image, ImageGrab
+import pytesseract
+import cv2
 import requests
 from pyzotero import zotero
 import html
@@ -36,12 +38,20 @@ else:
 
 ROOT = '/home/carter/Documents/Moulinette/'
 
-lang_map = {
+lang_map_google = {
 	'': '',
 	'Dutch': 'nl',
 	'German': 'de',
 	'Italian': 'it'
 }
+
+lang_map_tess = {
+	'': '',
+	'Dutch': 'nld',
+	'German': 'deu',
+	'Italian': 'ita'
+}
+
 
 # See https://stackoverflow.com/questions/122348/scale-image-down-but-not-up-in-latex for the scaling of images
 img_latex = '''\\begin{figure}[H]
@@ -54,63 +64,25 @@ abs_template = '''\\begin{abstract}
 %s
 \\end{abstract}'''
 
+def transf_text(text):
+	text = text.replace("-\n","")# words broken endline
+	text = text.replace("\n\n","\\par\n")# paragraphs
+	text = re.sub(r"(?<!\\par)\n"," ",text)# endline breaks
 
+	return text
 
-def extractOCR(file, root, project, doOCR, firstpage=1):
-	pdf = pdfplumber.open(file)# Returns a PDF object
+# See https://stackoverflow.com/a/55105824
+def parse_img(image_path,lang,desalt=False):
+    image = cv2.imread(image_path)
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    if desalt: # Useful for salt-and-pepper background.
+        gray = cv2.medianBlur(gray, 5)
+    filename = ROOT + "{}.png".format(os.getpid())
+    cv2.imwrite(filename, gray) #Create a temp file
+    text = pytesseract.image_to_string(Image.open(filename),lang=lang)
+    os.remove(filename) #Remove the temp file
 
-	if project == "":
-		project = file.split(".")[0].split(PATH_SEP)[-1]
-
-	proj_path = root + project
-	if not path.exists(proj_path):
-		mkdir(proj_path)
-
-	destination = proj_path + PATH_SEP + "original.txt"
-
-	if doOCR:
-		pages = split_pdf(file,project,firstpage)
-		service = auth_drive()
-		for i,page in enumerate(pages):
-			file_up = upload_doc(service,page)
-			download_doc(service,file_up,destination)
-	else:# Just try to extract the text
-		pages = split_pdf(file,project,firstpage)
-		txt_file = open(destination, "w") 
-		for n, page in enumerate(pdf.pages):
-			text = page.extract_text()
-			txt_file.write(text)
-		txt_file.close()
-
-	return project
-
-# If modifying these scopes, delete the file token.pickle.
-SCOPES = ['https://www.googleapis.com/auth/drive.file']
-
-def auth_drive():
-	"""Authenticate in the Drive and returns a usable service object
-	"""
-	creds = None
-	# The file token.pickle stores the user's access and refresh tokens, and is
-	# created automatically when the authorization flow completes for the first
-	# time.
-	if path.exists('token.pickle'):
-		with open('token.pickle', 'rb') as token:
-			creds = pickle.load(token)
-	# If there are no (valid) credentials available, let the user log in.
-	if not creds or not creds.valid:
-		if creds and creds.expired and creds.refresh_token:
-			creds.refresh(Request())
-		else:
-			flow = InstalledAppFlow.from_client_secrets_file(
-				'credentials.json', SCOPES)
-			creds = flow.run_local_server(port=0)
-		# Save the credentials for the next run
-		with open('token.pickle', 'wb') as token:
-			pickle.dump(creds, token)
-
-	service = build('drive', 'v3', credentials=creds)
-	return service
+    return text
 
 def split_pdf(file,project,firstpage=1):
 	out = ROOT + project + PATH_SEP + "orig_images"
@@ -119,68 +91,13 @@ def split_pdf(file,project,firstpage=1):
 	
 	pages = convert_from_path(file, dpi=300,output_file="",output_folder=out,first_page=firstpage,fmt='jpeg',paths_only=True)
 
-	# images = [Image.open(out + PATH_SEP + x) for x in sorted(os.listdir(out)) if x != "original.jpg"]
-	# widths, heights = zip(*(i.size for i in images))
-	# total_height = sum(heights)
-	# max_widths = max(widths)
-	
-	# new_im = Image.new('RGB', (max_widths, total_height))
-	# y_offset = 0
-	# for im in images:
-	# 	new_im.paste(im, (0,y_offset))
-	# 	y_offset += im.size[1]
-
-	# new_im.save(out+PATH_SEP+'original.jpg')
-
 	return pages
 
-def upload_doc(service,file):
-	name = file.split("/")[1]
-	file_metadata = {
-		'name': name,
-		'mimeType': 'application/vnd.google-apps.file',
-		'parents': ['1my_JqnNBNak5-aIlt5TZ92IHOazWUU2G']
-	}
-	media = MediaFileUpload(file,
-							mimetype='image/jpeg',
-							resumable=True)
-
-	file_up = service.files().create(body=file_metadata,
-								  media_body=media,
-								  fields='id').execute()
-	return(file_up)
-
-def download_doc(service,file_up,destination):	
-	out = "down_text"
-	if not path.exists(out):
-		mkdir(out)
-	request = service.files().export_media(fileId=file_up['id'],mimeType='text/plain')
-
-	fh = io.FileIO(destination,"ab")
-	downloader = MediaIoBaseDownload(fh, request)
-	done = False
-	while done is False:
-		status, done = downloader.next_chunk()
-		print("Download %d%%." % int(status.progress() * 100))
-
-	service.files().delete(fileId=file_up['id']).execute()
-
 class Phrase():
-	def __init__(self,phrase,index=None,prev=None,foll=None,page=None):
+	def __init__(self,phrase):
 		self.phrase = phrase
 		self.translation = ""
-		self.index = index
-		self.prev = prev
-		self.foll = foll
-		self.page = page
-		self.footnote = []
 		self.changed = True
-		self.translate = True
-
-class Footnote(Phrase):
-	def __init__(self):
-		self.pos = None
-
 
 def translate_text(text,translate_client,src="",target="en"):
 	"""Translates text into the target language.
@@ -188,6 +105,7 @@ def translate_text(text,translate_client,src="",target="en"):
 	Target must be an ISO 639-1 language code.
 	See https://g.co/cloud/translate/v2/translate-reference#supported_languages
 	"""
+	# TODO: extract parenthesis and dashes
 	if text == "":
 		return ""
 
@@ -202,7 +120,7 @@ def translate_text(text,translate_client,src="",target="en"):
 	# will return a sequence of results for each text.
 	result = translate_client.translate(clean_text,source_language=src,target_language=target)
 	result = re.sub("<span translate='no'>math(?P<math>.+?)</span>","$\g<math>$",result["translatedText"])
-	result = re.sub("<span translate='no'>page(?P<page>.+?)</span>","\g<page>",result)
+	result = re.sub("<span translate='no'>page(?P<page>.+?)</span>","\\textbf{\g<page>}",result)
 
 	return html.unescape(result)
 
@@ -298,9 +216,9 @@ class ZoteroDialog(tk.Toplevel):
 		self.canvas.create_window((4,4), window=self.frame, anchor="nw",tags="self.frame")
 
 		self.frame.bind("<Configure>", self.onFrameConfigure)
-		self.frame.bind("<MouseWheel>", self.mouse_scroll)
-		self.frame.bind_all("<Button-4>", self.mouse_scroll)
-		self.frame.bind_all("<Button-5>", self.mouse_scroll)
+		self.frame.bind("<MouseWheel>", self.zot_mouse_scroll)
+		self.frame.bind_all("<Button-4>", self.zot_mouse_scroll)
+		self.frame.bind_all("<Button-5>", self.zot_mouse_scroll)
 
 		self.var = tk.StringVar()
 		self.populate(collection)
@@ -337,7 +255,7 @@ class ZoteroDialog(tk.Toplevel):
 		'''Reset the scroll region to encompass the inner frame'''
 		self.canvas.configure(scrollregion=self.canvas.bbox("all"))
 
-	def mouse_scroll(self, event):
+	def zot_mouse_scroll(self, event):
 		x, y = self.winfo_pointerxy()
 		# print(self.winfo_pointerxy())
 		if "canvas" in str(self.winfo_containing(x,y)):
