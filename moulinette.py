@@ -253,6 +253,8 @@ class Moulinette(tk.Tk):
 		self.editor_left.bind("<Control-Shift-L>", self.replLinebreaks)
 		# self.bind("<KeyPress>",self.printEv)
 
+		self.editor_right.bind("<Alt-i>", self.insertItalicsRight)
+
 	def printEv(self,event):
 		print(event)
 
@@ -480,7 +482,9 @@ class Moulinette(tk.Tk):
 
 	def replLinebreaks(self,event=None):
 		text = self.editor_left.get("1.0",tk.END)
-		text = text.replace("\n","\\par\n")
+		reg = re.compile(r"(?P<bef>(?<!figure\}))(?P<aft>\n(?![ ]*\\))")
+		text = reg.sub(r'\g<bef>\\par\g<aft>',text)
+		# text = text.replace("\n","\\par\n")
 		self.editor_left.delete("1.0",tk.END)
 		self.editor_left.insert("1.0",text)
 
@@ -615,6 +619,7 @@ class Moulinette(tk.Tk):
 		content = content.replace("%","\\%")
 		content = content.replace("\\caption*{}","")
 		content = content.replace("&","\&")
+		content = content.replace("−","-")
 
 		with open("tex_template.tex", "r") as f:
 			template = f.read()
@@ -705,6 +710,8 @@ class Moulinette(tk.Tk):
 		self.editor_left.insert("insert","\\par")
 		if event.keycode == 104:
 			self.editor_left.insert("insert","\n")
+		if self.editor_left.tag_ranges(tk.SEL):
+			self.editor_left.delete("sel.first","sel.last")
 
 	def insertGen(self,word):
 		if self.editor_left.tag_ranges(tk.SEL):
@@ -732,6 +739,18 @@ class Moulinette(tk.Tk):
 	def deleteWord(self,event=None):
 		self.editor_left.delete("insert -1c wordstart", "insert")
 		return 'break'
+
+	# Rewrite this correctly
+	def insertGenRight(self,word):
+		if self.editor_right.tag_ranges(tk.SEL):
+			self.editor_right.insert("sel.first","\\%s{" % word)
+			self.editor_right.insert("sel.last","}")
+		else:
+			self.editor_right.insert("insert","\\%s{}" % word)
+			self.editor_right.mark_set("insert","insert"+"-%dc" % 1)
+
+	def insertItalicsRight(self,event=None):
+		self.insertGenRight("textit")
 
 	def insertEquation(self,event=None):
 		if event.state == 24:

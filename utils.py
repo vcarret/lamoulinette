@@ -339,7 +339,7 @@ class ZoteroDialog(tk.Toplevel):
 
 	def mouse_scroll(self, event):
 		x, y = self.winfo_pointerxy()
-		print(self.winfo_pointerxy())
+		# print(self.winfo_pointerxy())
 		if "canvas" in str(self.winfo_containing(x,y)):
 			if event.delta:
 				self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
@@ -430,17 +430,24 @@ common_abbr = {
 		'e.a.': 'en andere',
 		' ev.': ' ev',
 		'enz.': 'enzovoorts',
+		'fig.': 'figuur',
 		'id.': 'idem',
 		'i.e.': 'dat wil zeggen',
 		'i.p.v.': 'in plaats van',
+		'Ir.': 'Ingenieur',
 		'm.a.w.': 'met andere woorden',
 		'm.i.': 'mijn mening',
+		'mill.': 'miljoen',
 		'nl.': 'namelijk',
 		'n1.': 'namelijk',
+		'n.1.': 'namelijk',
 		'o.a.': 'og andet',
+		'Pr.': 'Professor',
+		'pct': 'procent',
 		'resp.': 'respektive',
 		't.a.v.': 'ten aanzien van',
 		't.o.v.': 'ten opzichte van',
+		'Ver.': 'Verenigde',
 		'Vgl.': 'Vergelijk',
 		'vgl.': 'vergelijk',
 		'w.o.': 'waaronder',
@@ -456,7 +463,8 @@ common_abbr = {
 		'z. B.': 'zum Beispiel',
 		'z.B.': 'zum Beispiel',
 		'a. a. o.': 'am angegebenen Orte',
-		'u. zw.': 'und zwar'
+		'u. zw.': 'und zwar',
+		'vgl.': 'vergleiche',
 		# ' s.': 'seite',
 		# 'Vjh.': 'Vierteljahrshefte'
 	}
