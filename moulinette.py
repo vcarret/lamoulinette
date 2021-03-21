@@ -205,12 +205,19 @@ class Moulinette(tk.Tk):
 		self.right_editor_content = ttk.Frame(self.notebook_rightpanel)
 		self.right_editor_content.pack(fill=tk.BOTH, padx=10,pady=5,ipadx=5,ipady=5,expand=True)
 
-		self.editor_right = tk.Text(wrap="word", background="white",undo=True,autoseparators=True,maxundo=-1,borderwidth=0, highlightthickness=0,spacing3=10)
+		self.editor_right = CustomText(self.right_editor_content) 
+		# tk.Text(wrap="word", background="white",undo=True,autoseparators=True,maxundo=-1,borderwidth=0, highlightthickness=0,spacing3=10)
 		self.scrollbar_right = Scrollbar(orient="vertical", borderwidth=1,command=self.editor_right.yview)
-
 		self.editor_right.configure(yscrollcommand=self.scrollbar_right.set)
-		self.scrollbar_right.pack(in_=self.right_editor_content,side=tk.RIGHT,fill=tk.Y,expand=False)
-		self.editor_right.pack(in_=self.right_editor_content,side=tk.LEFT,expand=True,fill=tk.BOTH)
+		self.linenumbers = TextLineNumbers(self.right_editor_content, width=30)
+		self.linenumbers.attach(self.editor_right)
+
+		self.scrollbar_right.pack(side=tk.RIGHT,fill=tk.Y,expand=False)
+		self.linenumbers.pack(side="left", fill="y")
+		self.editor_right.pack(side=tk.RIGHT,expand=True,fill=tk.BOTH)
+
+		self.editor_right.bind("<<Change>>", self._on_change)
+		self.editor_right.bind("<Configure>", self._on_change)
 
 		# Right viewer
 		self.right_viewer_content = ttk.Frame(self.notebook_rightpanel)
@@ -224,8 +231,6 @@ class Moulinette(tk.Tk):
 		# Tags
 		# self.editor_left.tag_configure("current_phrase", background="#d8d8d8")
 		# self.editor_left.tag_lower("current_phrase")
-
-
 
 		# Bindings
 		self.bind("<Control-s>", self.saveProject)
@@ -881,6 +886,8 @@ class Moulinette(tk.Tk):
 		with open(ROOT + ".zotero_coll","wb") as f:
 			pickle.dump(collection, f)
 
+	def _on_change(self, event):
+		self.linenumbers.redraw()
 
 class ScrollableImage(tk.Frame):
 	'''Scrollable image. See: https://stackoverflow.com/a/56046307'''
@@ -937,6 +944,55 @@ class ScrollableImage(tk.Frame):
 				else:
 					move = -1
 				self.cnvs.yview_scroll(move, "units")
+
+class TextLineNumbers(tk.Canvas):
+	def __init__(self, *args, **kwargs):
+		tk.Canvas.__init__(self, *args, **kwargs)
+		self.textwidget = None
+
+	def attach(self, text_widget):
+		self.textwidget = text_widget
+		
+	def redraw(self, *args):
+		'''redraw line numbers'''
+		self.delete("all")
+
+		i = self.textwidget.index("@0,0")
+		while True :
+			dline= self.textwidget.dlineinfo(i)
+			if dline is None: break
+			y = dline[1]
+			linenum = str(float(i)+47).split(".")[0]
+			self.create_text(2,y,anchor="nw", text=linenum)
+			i = self.textwidget.index("%s+1line" % i)
+
+class CustomText(tk.Text):
+	def __init__(self, *args, **kwargs):
+		tk.Text.__init__(self, *args, **kwargs)
+
+		# create a proxy for the underlying widget
+		self._orig = self._w + "_orig"
+		self.tk.call("rename", self._w, self._orig)
+		self.tk.createcommand(self._w, self._proxy)
+
+	def _proxy(self, *args):
+		# let the actual widget perform the requested action
+		cmd = (self._orig,) + args
+		result = self.tk.call(cmd)
+
+		# generate an event if something was added or deleted,
+		# or the cursor position changed
+		if (args[0] in ("insert", "replace", "delete") or 
+			args[0:3] == ("mark", "set", "insert") or
+			args[0:2] == ("xview", "moveto") or
+			args[0:2] == ("xview", "scroll") or
+			args[0:2] == ("yview", "moveto") or
+			args[0:2] == ("yview", "scroll")
+		):
+			self.event_generate("<<Change>>", when="tail")
+
+		# return what the actual widget returned
+		return result      
 
 
 if __name__ == "__main__":
