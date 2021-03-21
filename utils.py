@@ -64,13 +64,6 @@ abs_template = '''\\begin{abstract}
 %s
 \\end{abstract}'''
 
-def transf_text(text):
-	text = text.replace("-\n","")# words broken endline
-	text = text.replace("\n\n","\\par\n")# paragraphs
-	text = re.sub(r"(?<!\\par)\n"," ",text)# endline breaks
-
-	return text
-
 # See https://stackoverflow.com/a/55105824
 def parse_img(image_path,lang,desalt=False):
     image = cv2.imread(image_path)
@@ -111,7 +104,12 @@ def translate_text(text,translate_client,src="",target="en"):
 
 	clean_text = text.replace("\n"," ")
 	clean_text = re.sub("\$(?P<math>.+?)\$","<span translate='no'>math\g<math></span>",clean_text)
-	clean_text = re.sub("(?P<page>\[%d+?\])","<span translate='no'>page\g<page></span>",clean_text)
+
+	tmp = re.search("\[(\d+?)\]",clean_text)
+	if tmp:
+		num_page = int(tmp.group(1))
+		clean_text = clean_text[:tmp.start()] + clean_text[tmp.end():]
+		clean_text.replace("  "," ")
 
 	if isinstance(clean_text, six.binary_type):
 		clean_text = clean_text.decode("utf-8")
@@ -120,7 +118,8 @@ def translate_text(text,translate_client,src="",target="en"):
 	# will return a sequence of results for each text.
 	result = translate_client.translate(clean_text,source_language=src,target_language=target)
 	result = re.sub("<span translate='no'>math(?P<math>.+?)</span>","$\g<math>$",result["translatedText"])
-	result = re.sub("<span translate='no'>page(?P<page>.+?)</span>","\\textbf{\g<page>}",result)
+	if tmp:
+		result = r"\textbf{[" + format(num_page-1) + "]} " + result + r"\textbf{[" + format(num_page) + "]} "
 
 	return html.unescape(result)
 
@@ -217,8 +216,8 @@ class ZoteroDialog(tk.Toplevel):
 
 		self.frame.bind("<Configure>", self.onFrameConfigure)
 		self.frame.bind("<MouseWheel>", self.zot_mouse_scroll)
-		self.frame.bind_all("<Button-4>", self.zot_mouse_scroll)
-		self.frame.bind_all("<Button-5>", self.zot_mouse_scroll)
+		self.frame.bind("<Button-4>", self.zot_mouse_scroll)
+		self.frame.bind("<Button-5>", self.zot_mouse_scroll)
 
 		self.var = tk.StringVar()
 		self.populate(collection)
@@ -382,7 +381,9 @@ common_abbr = {
 		'z.B.': 'zum Beispiel',
 		'a. a. o.': 'am angegebenen Orte',
 		'u. zw.': 'und zwar',
+		'm. E.': 'meines Erachtens',
 		'vgl.': 'vergleiche',
+		'z. Zt.': 'zur Zeit',
 		# ' s.': 'seite',
 		# 'Vjh.': 'Vierteljahrshefte'
 	}

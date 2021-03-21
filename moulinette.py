@@ -261,7 +261,7 @@ class Moulinette(tk.Tk):
 		print(event)
 
 	def saveProject(self,event=None):
-		'''Saves the original and translated texts, the zotero item and the project name. With shift pressed, also saves changes made to Zotero metadata'''
+		'''Saves the original and translated texts, the zotero item and the project name. With shift pressed, also saves changes made to Zotero metadata''' 
 		original_text = self.editor_left.get('1.0', tk.END)
 		translated_text = self.editor_right.get('1.0', tk.END)
 
@@ -274,6 +274,9 @@ class Moulinette(tk.Tk):
 
 		with open(ROOT + self.project + PATH_SEP + "translation.txt", "w") as f:
 			f.write(translated_text.replace("•",""))
+
+		with open(ROOT + self.project + PATH_SEP + ".translation", "wb") as f:
+			pickle.dump(self.editor_right.dump('1.0', tk.END, **{"tag":True}),f)
 
 		# [print(x) for x in self.editor_left.dump('1.0', tk.END, **{"mark":True,'text':True})]
 		if event and event.state == 21:# code for ctrl+shift+S
@@ -297,8 +300,8 @@ class Moulinette(tk.Tk):
 			if not resp:
 				print("something went wrong with Zotero update")
 
-		with open(ROOT + self.project + PATH_SEP + 'project.moul', 'wb') as dict_phrases:
-			pickle.dump((self.zotItem,self.project), dict_phrases)
+		with open(ROOT + self.project + PATH_SEP + 'project.moul', 'wb') as f:
+			pickle.dump((self.zotItem,self.project), f)
 
 	def loadZoteroItem(self,itemKey):
 		item = self.apiInstance.api_instance.item(itemKey)
@@ -334,7 +337,7 @@ class Moulinette(tk.Tk):
 		self.filepath_entry.delete(0,tk.END)
 		self.filepath_entry.insert(0,file)
 		self.extractOCR()
-		self.loadText()
+		# self.loadText()
 		self.loadViewer()
 
 		self.saveProject()
@@ -343,11 +346,6 @@ class Moulinette(tk.Tk):
 		with open(ROOT + self.project + PATH_SEP + "original.txt","r") as f:
 			text = f.read()
 
-		if self.lang.get():
-			self.dict_abbr = common_abbr[self.lang.get().lower()]
-			text = re.sub('|'.join(self.dict_abbr.keys()),self.abbr_repl,text)
-			text = text.replace("$","§")
-
 		self.editor_left.insert("1.0",text)
 
 		if os.path.exists(ROOT + self.project + PATH_SEP + "translation.txt"):
@@ -355,6 +353,16 @@ class Moulinette(tk.Tk):
 				text = f.read()
 
 			self.editor_right.insert("1.0",text)
+			if os.path.exists(ROOT + self.project + PATH_SEP + ".translation"):
+				with open(ROOT + self.project + PATH_SEP + ".translation","rb") as f:
+					tags = pickle.load(f)
+					for tag in tags:
+						if tag[1][:6] == "phrase":
+							if tag[0] == "tagon":
+								pos_beg = tag[2]			
+							elif tag[0] == "tagoff":
+								pos_end = tag[2]
+								self.editor_right.tag_add(tag[1],pos_beg,pos_end)
 
 	def loadFile(self):
 		'''
@@ -365,12 +373,11 @@ class Moulinette(tk.Tk):
 			msg.showerror("Error", "Please select a .pdf or . moul file")
 			return
 
-		if not self.lang.get():
-			msg.showerror("Error", "Please select a language")
-			return
-
 		file_ext = file.split(".")[-1]
 		if file_ext.lower() == "pdf":
+			if not self.lang.get():
+				msg.showerror("Error", "Please select a language")
+				return
 			self.extractOCR()
 			self.zotItem = ZotItem(self.itemType.get())
 			self.zotItem.template["collections"] = [self.zotero_api["destinations"]["Translations"]]
@@ -381,8 +388,9 @@ class Moulinette(tk.Tk):
 			else:
 				print("something went wrong with Zotero")
 		elif file_ext.lower() == "moul":
-			with open(file, 'rb') as dict_phrases:
-				self.zotItem,self.project = pickle.load(dict_phrases)
+			with open(file, 'rb') as f:
+				self.zotItem,self.project = pickle.load(f)
+			self.loadText()
 		else:
 			msg.showerror("Error", "Wrong file extension")
 			return
@@ -390,7 +398,6 @@ class Moulinette(tk.Tk):
 		# if self.doTranslate.get():
 		# 	self.translateText()
 
-		self.loadText()
 		self.loadViewer()
 		self.loadZotero()
 
@@ -500,10 +507,11 @@ class Moulinette(tk.Tk):
 
 		pages = split_pdf(file,self.project,int(self.firstpage.get()))
 		lang = lang_map_tess[self.lang.get()]
+		self.dict_abbr = common_abbr[self.lang.get().lower()]
+		
 		for img in pages:
 			text = parse_img(img,lang,self.desalt.get())
-			print(text)
-			text = transf_text(text)
+			text = self.transf_text(text)
 			self.editor_left.insert("insert",text)
 			self.editor_left.update()
 
@@ -519,6 +527,16 @@ class Moulinette(tk.Tk):
 		self.editor_left.delete("1.0",tk.END)
 		self.editor_left.insert("1.0",text)
 
+	def transf_text(text):
+		text = text.replace("-\n","")# words broken endline
+		text = text.replace("\n\n","\\par\n")# paragraphs
+		text = re.sub(r"(?<!\\par)\n"," ",text)# endline breaks
+
+		text = re.sub('|'.join(self.dict_abbr.keys()),self.abbr_repl,text)
+		text = text.replace("$","§")
+
+		return text
+
 	def abbr_repl(self,match):
 		repl = self.dict_abbr[match.group()] if match.group() in self.dict_abbr else match.group()
 		return repl
@@ -526,9 +544,14 @@ class Moulinette(tk.Tk):
 	def buildPhrasesFromEditor(self,event=None):
 		'''Builds the phrase dictionary from the left panel editor
 		'''
+		if self.editor_right.get("1.0",tk.END).strip():
+			msgbox = msg.askokcancel("Warning", "This may break the link with translation")
+			if not msgbox:
+				return
+
 		text = self.editor_left.get("1.0",tk.END)
 		for tag in self.editor_left.tag_names():
-		    self.editor_left.tag_delete(tag)
+			self.editor_left.tag_delete(tag)
 
 		self.editor_left.tag_configure("color_phrase_1", background="#cecece")
 		self.editor_left.tag_lower("color_phrase_1")
@@ -542,8 +565,8 @@ class Moulinette(tk.Tk):
 			r'(?P<text>.+?(?<!\d)(?<!\(\w)(?<! [A-Za-z])(?<!\S\.\S)[\.\?\!\;\:](?!\.+)(?!\))(?!\d))']),# Beware one of the lookbehind excludes phrases in parenthesis 
 		flags=re.S)
 
-		dict_phrases = self.regex.finditer(text)
-		for i,match in enumerate(dict_phrases):
+		phrases = self.regex.finditer(text)
+		for i,match in enumerate(phrases):
 			# print(format(i) + ": " + match.group())
 			beg,end = match.span()
 			idx = '1.0 + %dc' % (beg)
@@ -556,8 +579,15 @@ class Moulinette(tk.Tk):
 	def translateText(self):
 		'''Based on the regex above and the named groups detected
 		'''
-		text = self.editor_left.get("1.0",tk.END)
+		if os.path.exists(ROOT + self.project + PATH_SEP + ".dict_phrases"):
+			with open(ROOT + self.project + PATH_SEP + ".dict_phrases","rb") as f:
+				dict_phrases = pickle.load(f)
+				check = True
+		else:
+			dict_phrases = {}
+			check = False
 
+		text = self.editor_left.get("1.0",tk.END)
 		# text = text.replace("\n","s")
 		translate_client = translate.Client()# Or use direct credentials in translation_api.json
 		# from google.oauth2 import service_account
@@ -566,10 +596,15 @@ class Moulinette(tk.Tk):
 		phrases = self.regex.finditer(text)
 
 		for i,ph in enumerate(phrases):
+			if check and ph.group(0) != dict_phrases["phrase_"+format(i)]:
+				self.editor_right.mark_set("insert","phrase_"+format(i)+".first")
+				self.editor_right.delete("phrase_"+format(i)+".first","phrase_"+format(i)+".last")
+			elif check:
+				continue
+			
+			dict_phrases["phrase_"+format(i)] = ph.group(0)
 			pos_beg = self.editor_right.index("insert")
-			# Put the original phrase in a don't translate cmd
-			self.editor_left.insert("phrase_"+format(i)+".first","\dont{")
-			self.editor_left.insert("phrase_"+format(i)+".last","}")
+
 			# Check which group has been matched
 			if ph.groupdict()["text"]:
 				cur_ph = ph.groupdict()["text"]
@@ -584,19 +619,16 @@ class Moulinette(tk.Tk):
 					trans_ph = translate_text(cur_ph,translate_client,src=lang_map_google[self.lang.get()],target="en")
 					self.editor_right.insert(pos_beg," " + trans_ph)
 			elif ph.groupdict()["cmd"]:
-				if ph.groupdict()["cmd"] == "dont":
-					self.editor_right.insert(pos_beg,ph.groupdict()["cmd_text"])
-				else:
-					self.editor_right.insert(pos_beg,"}")
-					cur_ph = ph.groupdict()["cmd_text"]
+				self.editor_right.insert(pos_beg,"}")
+				cur_ph = ph.groupdict()["cmd_text"]
+				trans_ph = translate_text(cur_ph,translate_client,src=lang_map_google[self.lang.get()],target="en")
+				self.editor_right.insert(pos_beg,trans_ph)
+				fnspace = "" if ph.groupdict()["cmd"] == "footnote" else " "
+				self.editor_right.insert(pos_beg,fnspace+"\\"+ph.groupdict()["cmd"]+"{")
+				if ph.groupdict()["bef_cmd"].strip():
+					cur_ph = ph.groupdict()["bef_cmd"]
 					trans_ph = translate_text(cur_ph,translate_client,src=lang_map_google[self.lang.get()],target="en")
-					self.editor_right.insert(pos_beg,trans_ph)
-					fnspace = "" if ph.groupdict()["cmd"] == "footnote" else " "
-					self.editor_right.insert(pos_beg,fnspace+"\\"+ph.groupdict()["cmd"]+"{")
-					if ph.groupdict()["bef_cmd"].strip():
-						cur_ph = ph.groupdict()["bef_cmd"]
-						trans_ph = translate_text(cur_ph,translate_client,src=lang_map_google[self.lang.get()],target="en")
-						self.editor_right.insert(pos_beg," " + trans_ph)
+					self.editor_right.insert(pos_beg," " + trans_ph)
 			elif ph.groupdict()["par"]:
 				self.editor_right.insert(pos_beg,"\\par \n")
 				if ph.groupdict()["bef_par"].strip():
@@ -605,10 +637,12 @@ class Moulinette(tk.Tk):
 					self.editor_right.insert(pos_beg, " " + trans_ph)
 
 			pos_end = self.editor_right.index("insert")
-			self.editor_right.tag_add("color_phrase_"+format(i%2+1),pos_beg,pos_end)
 			self.editor_right.tag_add("phrase_"+format(i),pos_beg,pos_end)	
 			self.editor_right.update()
 			self.editor_left.update()
+
+		with open(ROOT + self.project + PATH_SEP + ".dict_phrases","wb") as f:
+			pickle.dump(dict_phrases,f)
 
 	def dontTranslate(self,event=None):
 		'''Flags the phrase where the cursor currently is to not be translated. 
