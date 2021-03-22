@@ -42,14 +42,16 @@ lang_map_google = {
 	'': '',
 	'Dutch': 'nl',
 	'German': 'de',
-	'Italian': 'it'
+	'Italian': 'it',
+	'Norwegian': 'no'
 }
 
 lang_map_tess = {
 	'': '',
 	'Dutch': 'nld',
 	'German': 'deu',
-	'Italian': 'ita'
+	'Italian': 'ita',
+	'Norwegian': 'nor'
 }
 
 
@@ -215,9 +217,9 @@ class ZoteroDialog(tk.Toplevel):
 		self.canvas.create_window((4,4), window=self.frame, anchor="nw",tags="self.frame")
 
 		self.frame.bind("<Configure>", self.onFrameConfigure)
-		self.frame.bind("<MouseWheel>", self.zot_mouse_scroll)
-		self.frame.bind("<Button-4>", self.zot_mouse_scroll)
-		self.frame.bind("<Button-5>", self.zot_mouse_scroll)
+		self.frame.bind("<MouseWheel>", self.mouse_scroll)
+		self.frame.bind("<Button-4>", self.mouse_scroll)
+		self.frame.bind("<Button-5>", self.mouse_scroll)
 
 		self.var = tk.StringVar()
 		self.populate(collection)
@@ -254,7 +256,7 @@ class ZoteroDialog(tk.Toplevel):
 		'''Reset the scroll region to encompass the inner frame'''
 		self.canvas.configure(scrollregion=self.canvas.bbox("all"))
 
-	def zot_mouse_scroll(self, event):
+	def mouse_scroll(self, event):
 		x, y = self.winfo_pointerxy()
 		# print(self.winfo_pointerxy())
 		if "canvas" in str(self.winfo_containing(x,y)):
@@ -386,5 +388,13 @@ common_abbr = {
 		'z. Zt.': 'zur Zeit',
 		# ' s.': 'seite',
 		# 'Vjh.': 'Vierteljahrshefte'
+	},
+	'norwegian': {
+		'f. eks.': 'for eksempel',
+		'o.s.v.': 'og så videre.',
+		'pr.': 'per'
+	},
+	'italian': {
+
 	}
 }

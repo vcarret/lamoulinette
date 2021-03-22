@@ -80,7 +80,7 @@ class Moulinette(tk.Tk):
 		ttk.Label(self.load_settings, text='Language: ').grid(column=3,row=1,padx=(5,5), pady=(2,2))
 		self.lang = tk.StringVar()
 		ttk.Combobox(self.load_settings, textvariable=self.lang, font=self.default_font,state="readonly", 
-			values=("Dutch","German","Italian")).grid(column=4,row=1, pady=(2,2), sticky="nsew", columnspan=2)
+			values=("Dutch","German","Italian","Norwegian")).grid(column=4,row=1, pady=(2,2), sticky="nsew", columnspan=2)
 
 		ttk.Label(self.load_settings,text='First Page: ').grid(column=4, row=0, sticky='nsew')
 		self.firstpage = tk.StringVar()
@@ -532,7 +532,7 @@ class Moulinette(tk.Tk):
 		self.editor_left.delete("1.0",tk.END)
 		self.editor_left.insert("1.0",text)
 
-	def transf_text(text):
+	def transf_text(self,text):
 		text = text.replace("-\n","")# words broken endline
 		text = text.replace("\n\n","\\par\n")# paragraphs
 		text = re.sub(r"(?<!\\par)\n"," ",text)# endline breaks
@@ -881,8 +881,8 @@ class Moulinette(tk.Tk):
 			self.loadZoteroItem(itemKey)
 
 	def updateZotero(self):
-		collection = self.apiInstance.api_instance.collection_items(self.zotero_api["destinations"]["Translations"],sort="date",direction="desc",limit=50)
-		
+		collection = self.apiInstance.api_instance.collection_items(self.zotero_api["destinations"]["Translations"])#,sort="creator",direction="desc",limit=50)
+
 		with open(ROOT + ".zotero_coll","wb") as f:
 			pickle.dump(collection, f)
 
@@ -945,6 +945,7 @@ class ScrollableImage(tk.Frame):
 					move = -1
 				self.cnvs.yview_scroll(move, "units")
 
+# See https://stackoverflow.com/a/16375233
 class TextLineNumbers(tk.Canvas):
 	def __init__(self, *args, **kwargs):
 		tk.Canvas.__init__(self, *args, **kwargs)
