@@ -80,7 +80,7 @@ class Moulinette(tk.Tk):
 		ttk.Label(self.load_settings, text='Language: ').grid(column=3,row=1,padx=(5,5), pady=(2,2))
 		self.lang = tk.StringVar()
 		ttk.Combobox(self.load_settings, textvariable=self.lang, font=self.default_font,state="readonly", 
-			values=("Dutch","German","Italian","Norwegian")).grid(column=4,row=1, pady=(2,2), sticky="nsew", columnspan=2)
+			values=("Dutch","German","Italian","Norwegian","French")).grid(column=4,row=1, pady=(2,2), sticky="nsew", columnspan=2)
 
 		ttk.Label(self.load_settings,text='First Page: ').grid(column=4, row=0, sticky='nsew')
 		self.firstpage = tk.StringVar()
@@ -649,6 +649,8 @@ class Moulinette(tk.Tk):
 		with open(ROOT + self.project + PATH_SEP + ".dict_phrases","wb") as f:
 			pickle.dump(dict_phrases,f)
 
+		self.saveProject()
+
 	def dontTranslate(self,event=None):
 		'''Flags the phrase where the cursor currently is to not be translated. 
 		TODO: update the tag after insertion
@@ -881,7 +883,7 @@ class Moulinette(tk.Tk):
 			self.loadZoteroItem(itemKey)
 
 	def updateZotero(self):
-		collection = self.apiInstance.api_instance.collection_items(self.zotero_api["destinations"]["Translations"])#,sort="creator",direction="desc",limit=50)
+		collection = self.apiInstance.api_instance.collection_items(self.zotero_api["destinations"]["Translations"],sort="creator", limit=100)#,sort="creator",direction="desc",limit=50)
 
 		with open(ROOT + ".zotero_coll","wb") as f:
 			pickle.dump(collection, f)

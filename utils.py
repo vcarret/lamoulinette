@@ -43,7 +43,8 @@ lang_map_google = {
 	'Dutch': 'nl',
 	'German': 'de',
 	'Italian': 'it',
-	'Norwegian': 'no'
+	'Norwegian': 'no',
+	'French': 'fr'
 }
 
 lang_map_tess = {
@@ -51,7 +52,8 @@ lang_map_tess = {
 	'Dutch': 'nld',
 	'German': 'deu',
 	'Italian': 'ita',
-	'Norwegian': 'nor'
+	'Norwegian': 'nor',
+	'French': 'fra'
 }
 
 
@@ -105,7 +107,7 @@ def translate_text(text,translate_client,src="",target="en"):
 		return ""
 
 	clean_text = text.replace("\n"," ")
-	clean_text = re.sub("\$(?P<math>.+?)\$","<span translate='no'>math\g<math></span>",clean_text)
+	clean_text = re.sub("(?P<math>\$.+?\$)","<span translate='no'>\g<math></span>",clean_text)
 
 	tmp = re.search("\[(\d+?)\]",clean_text)
 	if tmp:
@@ -119,9 +121,9 @@ def translate_text(text,translate_client,src="",target="en"):
 	# Text can also be a sequence of strings, in which case this method
 	# will return a sequence of results for each text.
 	result = translate_client.translate(clean_text,source_language=src,target_language=target)
-	result = re.sub("<span translate='no'>math(?P<math>.+?)</span>","$\g<math>$",result["translatedText"])
+	result = re.sub("<span translate='no'>(?P<math>.+?)</span>","\g<math>",result["translatedText"])
 	if tmp:
-		result = r"\textbf{[" + format(num_page-1) + "]} " + result + r"\textbf{[" + format(num_page) + "]} "
+		result = r"\textbf{[" + format(num_page-1) + "]} " + result + r" \textbf{[" + format(num_page) + "]} "
 
 	return html.unescape(result)
 
@@ -364,6 +366,8 @@ common_abbr = {
 		'Pr.': 'Professor',
 		'pct': 'procent',
 		'resp.': 'respektive',
+		'schr.': 'schrijver',
+		'Schr.': 'Schrijver',
 		't.a.v.': 'ten aanzien van',
 		't.o.v.': 'ten opzichte van',
 		'Ver.': 'Verenigde',
@@ -385,6 +389,7 @@ common_abbr = {
 		'u. zw.': 'und zwar',
 		'm. E.': 'meines Erachtens',
 		'vgl.': 'vergleiche',
+		'Vgl.': 'Vergleiche',
 		'z. Zt.': 'zur Zeit',
 		# ' s.': 'seite',
 		# 'Vjh.': 'Vierteljahrshefte'
@@ -395,6 +400,9 @@ common_abbr = {
 		'pr.': 'per'
 	},
 	'italian': {
+
+	},
+	'french': {
 
 	}
 }
